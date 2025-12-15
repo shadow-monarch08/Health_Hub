@@ -1,0 +1,13 @@
+
+> server@1.0.0 test:safety
+> ts-node --project tsconfig.test.json scripts/test-safety.ts
+
+[dotenv@17.2.3] injecting env (17) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+
+🧪 Testing Account Freeze Logic...
+   1. Signup...
+   ❌ Freeze Test Failed: Request failed with status code 500
+
+🧪 Testing Resend Limit Logic...
+   1. Triggering Resends...
+   ❌ Resend Test Failed: Request failed with status code 500

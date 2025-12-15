@@ -1,0 +1,7 @@
+
+> server@1.0.0 test:auth
+> ts-node --project tsconfig.test.json scripts/test-auth.ts
+
+[dotenv@17.2.3] injecting env (17) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+🔹 1. Signup
+❌ Signup Failed: Error

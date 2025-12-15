@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  name                  String?
+  passwordHash          String?
+  emailVerified         Boolean   @default(false)
+  verificationToken     String?
+  verificationExpiresAt DateTime?
+  resetToken            String?
+  resetExpiresAt        DateTime?
+  createdAt             DateTime  @default(now())
+
+  onboardingCompleted Boolean   @default(false)
+  profiles            Profile[]
+}
+
+model Profile {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName  String
+  legalName    String?
+  dob          DateTime? @db.Date
+  relationship String?
+  createdAt    DateTime  @default(now())
+
+  emrConnections ProfileEmrConnection[]
+
+  @@map("profiles")
+}
+
+model ProfileEmrConnection {
+  id                    String    @id @default(uuid())
+  profileId             String
+  profile               Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  provider              String
+  patientEmrId          String
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  expiresAt             DateTime?
+  scope                 String?
+  status                String    @default("connected")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  @@unique([profileId, provider])
+  @@map("profile_emr_connections")
+}

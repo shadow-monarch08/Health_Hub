@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.epicPkce = exports.otpResendKey = exports.otpFreezeKey = exports.otpAttemptsKey = exports.signupOtpKey = exports.signupSessionKey = void 0;
+const signupSessionKey = (sessionId) => `signup:session:${sessionId}`;
+exports.signupSessionKey = signupSessionKey;
+const signupOtpKey = (sessionId) => `signup:otp:${sessionId}`;
+exports.signupOtpKey = signupOtpKey;
+const otpAttemptsKey = (email) => `signup:otp_attempts:${email}`;
+exports.otpAttemptsKey = otpAttemptsKey;
+const otpFreezeKey = (email) => `signup:otp_freeze:${email}`;
+exports.otpFreezeKey = otpFreezeKey;
+const otpResendKey = (email) => `signup:otp_resend:${email}`;
+exports.otpResendKey = otpResendKey;
+const epicPkce = (state) => `epic:pkce:${state}`;
+exports.epicPkce = epicPkce;

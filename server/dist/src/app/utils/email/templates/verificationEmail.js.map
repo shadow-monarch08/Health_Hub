@@ -1,0 +1,1 @@
+{"version":3,"file":"verificationEmail.js","sourceRoot":"","sources":["../../../../../../src/app/utils/email/templates/verificationEmail.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,MAAM,yBAAyB,GAAG,CAAC,IAAS,EAAE,KAAa,EAAE,EAAE;IAClE,OAAO;QACH,OAAO,EAAE,mBAAmB;QAC5B,IAAI,EAAE,iDAAiD,KAAK,MAAM,EAAE,cAAc;KACrF,CAAC;AACN,CAAC,CAAC"}
