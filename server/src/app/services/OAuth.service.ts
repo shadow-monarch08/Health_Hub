@@ -5,6 +5,7 @@ import logger from '../../config/logger';
 import { PrismaClient } from '../../../generated/prisma/client'; // Using generated path as per schema
 import { PrismaPg } from '@prisma/adapter-pg'
 import { env } from "../../config/environment"
+import { cryptoService } from './Crypto.service';
 
 const connectionString = env.DB_URL
 const adapter = new PrismaPg({ connectionString })
@@ -140,16 +141,16 @@ export class OAuthService {
                 profileId,
                 provider: 'epic',
                 patientEmrId: patientId,
-                accessTokenEncrypted,
-                refreshTokenEncrypted,
+                accessTokenEncrypted: cryptoService.encrypt(tokenData.access_token),
+                refreshTokenEncrypted: tokenData.refresh_token ? cryptoService.encrypt(tokenData.refresh_token) : null,
                 expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
                 scope: tokenData.scope,
                 status: 'connected'
             },
             update: {
                 patientEmrId: patientId,
-                accessTokenEncrypted,
-                refreshTokenEncrypted,
+                accessTokenEncrypted: cryptoService.encrypt(tokenData.access_token),
+                refreshTokenEncrypted: tokenData.refresh_token ? cryptoService.encrypt(tokenData.refresh_token) : null,
                 expiresAt: new Date(Date.now() + (tokenData.expires_in * 1000)),
                 scope: tokenData.scope,
                 status: 'connected',

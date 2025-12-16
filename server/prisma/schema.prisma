@@ -39,7 +39,12 @@ model Profile {
   relationship String?
   createdAt    DateTime  @default(now())
 
-  emrConnections ProfileEmrConnection[]
+  emrConnections                 ProfileEmrConnection[]
+  profileFhirResourceRaws        ProfileFhirResourceRaw[]
+  profileFhirResourceNormalizeds ProfileFhirResourceNormalized[]
+  profileFhirResourceCleans      ProfileFhirResourceClean[]
+  profileSummaries               ProfileSummary[]
+  profileSyncJobs                ProfileSyncJob[]
 
   @@map("profiles")
 }
@@ -60,4 +65,68 @@ model ProfileEmrConnection {
 
   @@unique([profileId, provider])
   @@map("profile_emr_connections")
+}
+
+model ProfileFhirResourceRaw {
+  id           String   @id @default(uuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  provider     String
+  resourceType String
+  resourceId   String
+  resourceJson Json
+  fetchedAt    DateTime @default(now()) @db.Timestamptz
+
+  @@unique([profileId, provider, resourceType, resourceId])
+  @@map("profile_fhir_resources_raw")
+}
+
+model ProfileFhirResourceNormalized {
+  id             String   @id @default(uuid())
+  profileId      String
+  profile        Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  provider       String
+  resourceType   String
+  resourceId     String
+  canonicalCode  String? // SNOMED, LOINC, RxNorm
+  normalizedJson Json
+  normalizedAt   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([profileId, provider, resourceType, resourceId])
+  @@map("profile_fhir_resources_normalized")
+}
+
+model ProfileFhirResourceClean {
+  id           String   @id @default(uuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  resourceType String
+  cleanJson    Json
+  sources      Json // [{ provider, raw_id }]
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  @@unique([profileId, resourceType])
+  @@map("profile_fhir_resources_clean")
+}
+
+model ProfileSummary {
+  profileId   String    @id
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  summaryJson Json?
+  status      String    @default("absent") // absent | syncing | ready | error
+  updatedAt   DateTime? @db.Timestamptz
+
+  @@map("profile_summary")
+}
+
+model ProfileSyncJob {
+  id          String    @id @default(uuid())
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  status      String    @default("pending") // pending | syncing | success | failed
+  startedAt   DateTime  @default(now()) @db.Timestamptz
+  completedAt DateTime? @db.Timestamptz
+  error       String?
+
+  @@map("profile_sync_jobs")
 }

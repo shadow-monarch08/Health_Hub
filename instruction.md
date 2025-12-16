@@ -1,336 +1,262 @@
-You are an **expert backend engineer** specializing in **Node.js, Express, Prisma, PostgreSQL, Redis, OAuth2 (SMART on FHIR), and secure system design**.
-
-You are working on an **already existing backend codebase** where:
-
-* Native user authentication is **already implemented**
-* OAuth2 with Epic is **already implemented and working**
-* Generic Epic FHIR resource proxying is **already implemented**
-* Redis is already integrated
-* Only the `users` table currently exists in the database
-* **No medical data is persisted yet**
-
-Your task is to **extend and solidify the backend** by implementing **profiles, durable OAuth persistence, and onboarding enforcement**, strictly following the phase-by-phase plan below.
+> **System Role:**
+> You are a **Principal Backend Engineer & Healthcare Data Architect** with deep experience building scalable EHR aggregation systems.
+> You prioritize correctness, bounded data models, and long-term operability over convenience.
 
 ---
 
-# 🚨 ABSOLUTE NON-NEGOTIABLE RULES
+## 🧠 CONTEXT (NON-NEGOTIABLE)
 
-1. **DO NOT rewrite existing OAuth logic unless explicitly required**
-2. **DO NOT introduce new routes unless necessary**
-3. **DO NOT break existing Epic FHIR resource fetching**
-4. **DO NOT use Redis for identity or token storage**
-5. **DO NOT store any FHIR medical data yet**
-6. **DO NOT write tests — testing will be done later**
-7. **DO NOT add frontend code**
-8. **FOLLOW existing folder structure and patterns**
-9. **If a file/folder already exists, MODIFY it — do not duplicate**
-10. **Redis is ONLY for ephemeral state (OAuth state, later SSE/jobs)**
+The system already implements a **three-layer medical data architecture**:
 
----
+```
+RAW        → Immutable external truth (FHIR as-is)
+NORMALIZED → Provider-agnostic clinical facts (one event per row)
+CLEAN      → Patient-facing, dashboard-ready summaries
+```
 
-# 🧱 CORE ARCHITECTURAL PRINCIPLES (LOCKED)
+The **CLEAN layer has been incorrectly implemented previously** by storing unbounded lists of historical data.
 
-You MUST follow these rules:
-
-1. **User identity comes ONLY from native login**
-
-   * Cookie / JWT / session middleware
-   * No sessionId passed to frontend for identity
-
-2. **Profiles are the unit of medical ownership**
-
-   * All EHR connections attach to `profile_id`
-
-3. **Postgres is the source of truth**
-
-   * Users
-   * Profiles
-   * Profile ↔ EHR connections
-   * Encrypted OAuth tokens
-
-4. **Redis is ephemeral, non-identity state**
-
-   * OAuth `state`
-   * Rate limits
-   * Background job progress (future)
-   * SSE fan-out (future)
+This prompt defines the **final, correct, irreversible contract** for the CLEAN layer.
 
 ---
 
-# ✅ PHASE-BY-PHASE IMPLEMENTATION (MANDATORY ORDER)
+## 🚨 CRITICAL FIRST STEP (MANDATORY)
 
-You MUST implement **each phase in order**.
+### ❗ DELETE ALL EXISTING CLEAN DATA
+
+Before implementing anything new:
+
+* **Delete all rows** from `profile_fhir_resources_clean`
+* Treat all existing data as **invalid**
+* Rebuild CLEAN strictly from NORMALIZED
+
+Reason:
+
+> CLEAN is a derived projection.
+> Incorrect projections must never be preserved.
 
 ---
 
-## ✅ PHASE 1 — PROFILES (FOUNDATION)
+## 🎯 PURPOSE OF `profile_fhir_resources_clean`
 
-### 1️⃣ Create `profiles` table (Prisma + DB)
+> **The CLEAN table stores a SMALL, BOUNDED, PATIENT-FACING SUMMARY of medical data — NOT history.**
 
-Create the following table **exactly**:
+It exists to answer:
+
+* “What does the patient’s health look like right now?”
+* “What should the dashboard show instantly?”
+* “What is the latest clinically relevant state?”
+
+It does **NOT** exist to:
+
+* Store history
+* Support pagination
+* Act as a queryable data source
+* Replace NORMALIZED
+
+---
+
+## 🧱 ABSOLUTE RULES (DO NOT VIOLATE)
+
+1. **CLEAN MUST BE BOUNDED**
+
+   * No unbounded arrays
+   * No full history
+   * Payload must stay small (< ~50KB)
+
+2. **NO PAGINATION IN CLEAN**
+
+   * If pagination is needed → data belongs in NORMALIZED
+
+3. **ONE ROW PER (profile_id, resource_type)**
+
+   * Enforced by DB uniqueness
+
+4. **CLEAN IS REBUILDABLE**
+
+   * Must be safe to delete and regenerate at any time
+
+5. **CLEAN IS READ-OPTIMIZED**
+
+   * Designed for dashboards and summaries only
+
+---
+
+## 🗂️ TABLE CONTRACT — `profile_fhir_resources_clean`
+
+Each row represents **the system’s best current summary** for one resource type.
+
+### Required Columns
+
+* `profile_id`
+* `resource_type`
+* `clean_json` → summary only
+* `sources` → contributing providers (deduplicated)
+* `created_at`
+
+### Uniqueness
 
 ```sql
-profiles (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  display_name  TEXT NOT NULL,
-  legal_name    TEXT,
-  dob           DATE,
-  relationship  TEXT,      -- self | mother | father | etc.
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+UNIQUE (profile_id, resource_type)
 ```
-
-### Backend rules:
-
-* A profile MUST belong to exactly one user
-* Users may have multiple profiles
-* Profiles are the **owner of all medical/EHR data**
 
 ---
 
-### 2️⃣ Add minimal Profile APIs
+## 🧹 HOW RAW & NORMALIZED DATA FEEDS CLEAN
 
-Implement ONLY:
+### Source of truth
 
-* `POST /profiles` → create profile (used in onboarding)
-* `GET /profiles` → list profiles for logged-in user
+* CLEAN is derived **only** from `profile_fhir_resources_normalized`
+* RAW is never read directly for CLEAN
 
-Enforce:
+### Input constraint
 
-* Authenticated user only
-* No cross-user access
+* Cleaning logic must operate on a **bounded subset**:
 
-🚫 Do NOT implement update/delete yet.
+  * Latest records
+  * Relevant records
+  * Never full history
 
 ---
 
-## ✅ PHASE 2 — OAUTH START (REDIS = STATE ONLY)
+## 📦 WHAT `clean_json` MUST CONTAIN (BY RESOURCE)
 
-### 3️⃣ Implement Redis-based OAuth State
+### 🩺 Condition
 
-Implement a Redis helper/service using the following contract:
-
-**Key**
-
-```
-oauth:state:<state>
-```
-
-**Value**
+* Active conditions only
+* Most recent clinical status
+* Onset date if known
 
 ```json
 {
-  "userId": "<uuid>",
-  "profileId": "<uuid>",
-  "provider": "epic"
+  "Hypertension": {
+    "code": "I10",
+    "status": "active",
+    "onset_date": "2018-03-12"
+  }
 }
 ```
 
-**TTL**
-
-```
-10 minutes
-```
-
-This **completely replaces** any DB-based OAuth state table.
-
 ---
 
-### 4️⃣ Update `/oauth/start`
+### 💊 MedicationRequest
 
-The endpoint MUST now require:
+* Currently active medications only
+* Latest dosage & instructions
+* Therapy type (acute vs long-term)
 
 ```json
 {
-  "profileId": "<uuid>",
-  "provider": "epic"
+  "Drospirenone–Ethinyl Estradiol": {
+    "status": "active",
+    "dose": "1 tablet",
+    "frequency": "once daily",
+    "route": "oral",
+    "start_date": "2019-05-28"
+  }
 }
 ```
 
-Backend MUST:
-
-1. Ensure user is authenticated
-2. Ensure `profileId` belongs to user
-3. Generate cryptographically secure `state`
-4. Store state in Redis
-5. Redirect to Epic OAuth URL with `state`
-
-🚫 Do NOT store tokens
-🚫 Do NOT write to DB here
-
 ---
 
-## ✅ PHASE 3 — OAUTH CALLBACK → PERSIST CONNECTION (DB)
+### 🧪 Observation (Labs & Vitals)
 
-### 5️⃣ Create `profile_emr_connections` table
+* Latest value per test
+* Optional previous value
+* Trend (if computable)
 
-Create the following table **exactly**:
-
-```sql
-profile_emr_connections (
-  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id              UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  provider                TEXT NOT NULL,   -- epic | athena (future)
-  patient_emr_id          TEXT NOT NULL,
-
-  access_token_encrypted  TEXT NOT NULL,
-  refresh_token_encrypted TEXT,
-  expires_at              TIMESTAMPTZ,
-
-  scope                   TEXT,
-  status                  TEXT NOT NULL DEFAULT 'connected',
-  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-  UNIQUE (profile_id, provider)
-);
+```json
+{
+  "Hemoglobin A1c": {
+    "latest": {
+      "value": 7.2,
+      "unit": "%",
+      "measured_at": "2024-02-20",
+      "flag": "high"
+    },
+    "previous": {
+      "value": 6.9,
+      "measured_at": "2023-10-11"
+    },
+    "trend": "up"
+  }
+}
 ```
 
-This table is the **single source of truth** for OAuth credentials.
+❌ Never store full lab history here.
 
 ---
 
-### 6️⃣ Update `/oauth/callback`
+### 💉 Immunization
 
-Modify the callback flow to:
-
-1. Read `state` + `code`
-2. Fetch Redis `oauth:state:<state>`
-3. Validate:
-
-   * State exists & not expired
-   * `userId` matches authenticated user
-   * `profileId` exists & belongs to user
-   * Provider matches
-4. Exchange `code` → access token, refresh token, patient ID
-5. **UPSERT into `profile_emr_connections`**
-6. Delete Redis OAuth state
-7. Redirect frontend (NO sessionId in URL)
-
-🚫 DO NOT create Redis sessions
-🚫 DO NOT return sessionId
+* Vaccines received
+* Latest dose per vaccine
+* Completion status
 
 ---
 
-## ✅ PHASE 4 — ONBOARDING ENFORCEMENT
+### ⚠️ AllergyIntolerance
 
-### 7️⃣ Add onboarding flag to `users`
-
-Add the following column:
-
-```sql
-users.onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
-```
+* Active allergies only
+* Severity & reaction summary
 
 ---
 
-### 8️⃣ Define onboarding completion rule
+### 🏥 Encounter / Procedure
 
-Set `onboarding_completed = true` **ONLY when**:
-
-* User has ≥ 1 profile
-* That profile has ≥ 1 active `profile_emr_connection`
-
-This update MUST occur **inside OAuth callback** after DB insert succeeds.
+* Most recent encounters only
+* No full visit history
 
 ---
 
-### 9️⃣ Gate application entry
+## 🧠 WHAT MUST NEVER GO INTO CLEAN
 
-Ensure backend exposes onboarding state via `/me`.
+❌ Full historical series
+❌ Paginated data
+❌ Free-text notes
+❌ Provider-specific metadata
+❌ Raw FHIR JSON
+❌ Data requiring filtering or querying
 
-Frontend (already implemented separately) will:
-
-* Redirect to onboarding if `onboarding_completed = false`
-* Redirect to dashboard otherwise
-
-Backend must simply provide correct data.
-
----
-
-## ✅ PHASE 5 — UPDATE EHR FETCH FLOW (REMOVE REDIS IDENTITY)
-
-### 🔟 Refactor `/api/v1/ehr/:resource`
-
-Current (testing):
-
-```
-Frontend → sessionId → Redis → token
-```
-
-Replace with:
-
-```
-Frontend → authenticated request + profileId
-Backend → DB → token → Epic
-```
-
-Example request:
-
-```
-GET /api/v1/ehr/:resource?profileId=<uuid>
-```
-
-Backend MUST:
-
-1. Resolve authenticated `userId`
-2. Verify user owns `profileId`
-3. Load tokens from `profile_emr_connections`
-4. Refresh token if expired
-5. Proxy request to Epic FHIR API
-6. Return raw response
-
-🚫 Redis must NOT be used here.
+If it needs `LIMIT`, `OFFSET`, or `CURSOR` → it does NOT belong in CLEAN.
 
 ---
 
-## ✅ PHASE 6 — FINAL REDIS ROLE (NO EXPANSION)
+## 🔄 CLEANING STRATEGY (IMPLEMENTATION RULES)
 
-Redis MUST be used ONLY for:
+1. Fetch **bounded normalized data**
+2. Group by canonical clinical concept
+3. Select “best” or “latest” record
+4. Compute minimal derived fields (trend, status)
+5. Overwrite existing CLEAN row atomically
 
-* OAuth state (`oauth:state:*`)
-* (Future) background jobs
-* (Future) SSE fan-out
-* (Future) rate limiting
-
-🚫 No tokens
-🚫 No identity
-🚫 No profile resolution
+CLEAN is **replace-on-write**, not incremental history.
 
 ---
 
-# 🛑 EXPLICITLY DO NOT IMPLEMENT (YET)
+## 🧪 ERROR HANDLING
 
-* ❌ Medical data persistence
-* ❌ FHIR normalization
-* ❌ Deduplication
-* ❌ Analytics
-* ❌ SSE
-* ❌ Background workers
-* ❌ Tests
+* If cleaning fails:
+
+  * Log error
+  * Do NOT partially update CLEAN
+* CLEAN must never be left in a half-built state
 
 ---
 
-# 📦 EXPECTED DELIVERABLES
+## 🧠 FINAL PRINCIPLE (DO NOT FORGET)
 
-You MUST return:
+> **CLEAN is a summary, not a store.
+> NORMALIZED is history, not UI.
+> RAW is truth, not convenience.**
 
-1. Prisma schema updates (`profiles`, `profile_emr_connections`, user flag)
-2. Updated OAuth start & callback logic
-3. Profile APIs (create + list)
-4. Updated `/ehr/:resource` resolution logic
-5. Redis OAuth state helper/service
-6. Clean, production-grade code matching existing architecture
+If any implementation violates this, **reject it**.
 
 ---
 
-# 🧠 FINAL NOTE
+### ✅ BEGIN IMPLEMENTATION
 
-If you are uncertain at any step:
-
-* **Inspect existing code**
-* **Follow existing patterns**
-* **Do NOT invent new abstractions**
-
-This implementation must be **incremental, safe, and compatible** with the current backend.
+1. **Delete all existing CLEAN data**
+2. Enforce DB uniqueness
+3. Rebuild CLEAN strictly per this contract
+4. Validate payload size and boundedness

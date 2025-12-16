@@ -2,6 +2,9 @@ import { PrismaClient } from '../../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg'
 import { env } from "../../config/environment"
 import logger from '../../config/logger';
+import { cryptoService } from './Crypto.service';
+import { normalizationService } from './Normalization.service';
+
 
 const connectionString = env.DB_URL
 const adapter = new PrismaPg({ connectionString })
@@ -46,8 +49,16 @@ export class EHRService {
             throw new Error('Profile not connected to Epic');
         }
 
-        const accessToken = connection.accessTokenEncrypted; // TODO: Decrypt
+        const accessTokenEncrypted = connection.accessTokenEncrypted;
         const patientId = connection.patientEmrId;
+
+        let accessToken: string;
+        try {
+            accessToken = cryptoService.decrypt(accessTokenEncrypted);
+        } catch (error) {
+            logger.error(`Failed to decrypt access token for profile ${profileId}:`, error);
+            throw new Error('Invalid token data — please reconnect Epic.');
+        }
 
         if (!accessToken || !patientId) {
             throw new Error('Invalid connection data: missing token or patient ID');
@@ -88,7 +99,84 @@ export class EHRService {
         }
 
         const resourceData = await response.json();
+
+        // --- Phase 2: Raw FHIR Storage ---
+        // We persist exactly what we received from Epic.
+        // Handling uniqueness: If we fetch the same resource again, we update it (or ignore).
+        // For 'Patient', resourceId is patientId.
+        // For others, we might get a Bundle. logic differs.
+
+        if (resourceData.resourceType === 'Bundle' && resourceData.entry) {
+            // Upsert each entry in the bundle
+            await Promise.all(resourceData.entry.map(async (entry: any) => {
+                if (!entry.resource || !entry.resource.id) return;
+
+                await prisma.profileFhirResourceRaw.upsert({
+                    where: {
+                        profileId_provider_resourceType_resourceId: {
+                            profileId,
+                            provider: 'epic',
+                            resourceType: entry.resource.resourceType,
+                            resourceId: entry.resource.id
+                        }
+                    },
+                    create: {
+                        profileId,
+                        provider: 'epic',
+                        resourceType: entry.resource.resourceType,
+                        resourceId: entry.resource.id,
+                        resourceJson: entry.resource,
+                        fetchedAt: new Date()
+                    },
+                    update: {
+                        resourceJson: entry.resource,
+                        fetchedAt: new Date()
+                    }
+                });
+                // Normalize
+                await normalizationService.normalize(profileId, 'epic', entry.resource.resourceType, entry.resource.id, entry.resource);
+            }));
+        } else if (resourceData.id) {
+            // Single resource (e.g. Patient)
+            await prisma.profileFhirResourceRaw.upsert({
+                where: {
+                    profileId_provider_resourceType_resourceId: {
+                        profileId,
+                        provider: 'epic',
+                        resourceType: resourceType,
+                        resourceId: resourceData.id
+                    }
+                },
+                create: {
+                    profileId,
+                    provider: 'epic',
+                    resourceType: resourceType,
+                    resourceId: resourceData.id,
+                    resourceJson: resourceData,
+                    fetchedAt: new Date()
+                },
+                update: {
+                    resourceJson: resourceData,
+                    fetchedAt: new Date()
+                }
+            });
+
+            // Normalize
+            await normalizationService.normalize(profileId, 'epic', resourceType, resourceData.id, resourceData);
+        }
+
         return { success: true, resourceType, data: resourceData };
+    }
+
+    /**
+     * Retrieves the clean, aggregated data for a resource type.
+     */
+    async getCleanResource(profileId: string, resourceType: string): Promise<any> {
+        const record = await prisma.profileFhirResourceClean.findFirst({
+            where: { profileId, resourceType }
+        });
+
+        return record ? record.cleanJson : [];
     }
 }
 

@@ -11,4 +11,7 @@ router.use(authenticate);
 // Example: /api/v1/ehr/Observation?profileId=...
 router.get('/:resource', ehrController.getResource);
 
+// Route: POST /api/v1/ehr/sync
+router.post('/sync', ehrController.sync);
+
 export default router;

@@ -51,16 +51,19 @@ export default function Dashboard() {
         setLoading(true);
         setEhrData(null);
         try {
-            // Fetch All Data in Parallel using allSettled to prevent one failure from blocking all
+            // 1. Trigger Sync
+            await ehrApi.sync(profileId);
+
+            // 2. Fetch Clean Data
             const results = await Promise.allSettled([
-                ehrApi.fetchResource(profileId, 'Patient'),
-                ehrApi.fetchResource(profileId, 'Condition'),
-                ehrApi.fetchResource(profileId, 'AllergyIntolerance'),
-                ehrApi.fetchResource(profileId, 'MedicationRequest'),
-                ehrApi.fetchResource(profileId, 'Observation'), // Lab Results + Vitals
-                ehrApi.fetchResource(profileId, 'Encounter'),
-                ehrApi.fetchResource(profileId, 'Procedure'),
-                ehrApi.fetchResource(profileId, 'Immunization'),
+                ehrApi.fetchResource(profileId, 'Patient', 'clean'),
+                ehrApi.fetchResource(profileId, 'Condition', 'clean'),
+                ehrApi.fetchResource(profileId, 'AllergyIntolerance', 'clean'),
+                ehrApi.fetchResource(profileId, 'MedicationRequest', 'raw'),
+                ehrApi.fetchResource(profileId, 'Observation', 'clean'), // Lab Results + Vitals
+                ehrApi.fetchResource(profileId, 'Encounter', 'clean'),
+                ehrApi.fetchResource(profileId, 'Procedure', 'clean'),
+                ehrApi.fetchResource(profileId, 'Immunization', 'clean'),
             ]);
 
             const getData = (index: number) => {
