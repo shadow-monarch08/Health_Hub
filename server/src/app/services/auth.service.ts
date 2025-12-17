@@ -1,5 +1,4 @@
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { emailService } from './email.service';
@@ -10,11 +9,6 @@ import * as otpService from '../../redis/otpService';
 import * as sessionService from '../../redis/sessionService';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-
-const connectionString = env.DB_URL
-
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 export class AuthService {
     async signup(data: z.infer<typeof signupSchema>) {

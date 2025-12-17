@@ -59,7 +59,7 @@ export default function Dashboard() {
                 ehrApi.fetchResource(profileId, 'Patient', 'clean'),
                 ehrApi.fetchResource(profileId, 'Condition', 'clean'),
                 ehrApi.fetchResource(profileId, 'AllergyIntolerance', 'clean'),
-                ehrApi.fetchResource(profileId, 'MedicationRequest', 'raw'),
+                ehrApi.fetchResource(profileId, 'MedicationRequest', 'clean'),
                 ehrApi.fetchResource(profileId, 'Observation', 'clean'), // Lab Results + Vitals
                 ehrApi.fetchResource(profileId, 'Encounter', 'clean'),
                 ehrApi.fetchResource(profileId, 'Procedure', 'clean'),

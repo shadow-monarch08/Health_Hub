@@ -2,14 +2,9 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import * as redisOAuth from '../../redis/redis.oauth.service';
 import logger from '../../config/logger';
-import { PrismaClient } from '../../../generated/prisma/client'; // Using generated path as per schema
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import { cryptoService } from './Crypto.service';
-
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 interface TokenResponse {
     access_token: string;

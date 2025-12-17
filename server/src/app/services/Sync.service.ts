@@ -1,12 +1,7 @@
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import logger from '../../config/logger';
 import { ehrService } from './EHR.service';
-
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 export class SyncService {
 

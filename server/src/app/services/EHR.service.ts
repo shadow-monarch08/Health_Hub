@@ -1,14 +1,11 @@
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import logger from '../../config/logger';
 import { cryptoService } from './Crypto.service';
 import { normalizationService } from './Normalization.service';
 
 
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
+
 
 interface TokenResponse {
     access_token: string;

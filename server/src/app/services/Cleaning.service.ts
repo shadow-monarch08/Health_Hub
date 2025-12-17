@@ -1,11 +1,6 @@
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import logger from '../../config/logger';
-
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 export class CleaningService {
 
@@ -54,25 +49,6 @@ export class CleaningService {
                     if (latest) cleanData = [{ status: 'unknown', ...(latest.normalizedJson as object) }];
             }
 
-            // 3. Save to Clean Table (Strict Summary Rule)
-            // The unique constraint @@unique([profileId, resourceType]) now exists.
-            // We use upsert to replace the ENTIRE entry with the new clean summary.
-
-            // The 'cleanData' from aggregate methods is now a LIST of summaries (one per code).
-            // Example: [{ "Hypertension": {...} }, { "Diabetes": {...} }] -> No, wait.
-            // My aggregate methods return an ARRAY of objects.
-            // The frontend likely expects a map or a list.
-            // The example contract shows: "Hypertension": { ... }
-            // Let's make `cleanData` a simple object map keyed by the Condition Name / Med Name.
-
-            // REFACTOR: All aggregate methods below will now return the FINAL JSON OBJECT, not an array.
-
-            // Convert array back to object if needed, or update aggregate methods to return object.
-            // Let's update `cleanData` to be `any` (Object) instead of `any[]`.
-
-            // ... Wait, I need to check the aggregate method signatures below. 
-            // I will update them to return `any` (Object).
-
             await prisma.profileFhirResourceClean.upsert({
                 where: {
                     profileId_resourceType: {
@@ -103,7 +79,7 @@ export class CleaningService {
     // --- AGGREGATION LOGIC (SUMMARY ONLY) ---
 
     private aggregateMedications(records: any[]): any {
-        // Output: { "MedName": { status, dose, ... } }
+        // Output: { "MedName": { ...structured data... } }
         const summary: { [key: string]: any } = {};
 
         for (const record of records) {
@@ -111,18 +87,53 @@ export class CleaningService {
             // Only care about Active medications
             if (data.status === 'completed' || data.status === 'stopped') continue;
 
-            const key = record.canonicalCode || data.medication || 'Unknown Medication';
+            // Handle both new and old structure for safe transition
+            const medName = data.medication?.name || data.medication || 'Unknown Medication';
+            const key = record.canonicalCode || medName;
 
-            // Conflict resolution: Latest authored date wins
-            const existing = summary[key];
-            const isNewer = !existing || (new Date(data.authoredOn) > new Date(existing.start_date));
+            // Conflict resolution: Latest start date wins
+            // New structure uses 'course.start', old used 'authoredOn'
+            const newStartStr = data.course?.start || data.authoredOn;
+            const existingStartStr = summary[key]?.course?.start;
+
+            const newDate = newStartStr ? new Date(newStartStr) : new Date(0);
+            const existingDate = existingStartStr ? new Date(existingStartStr) : new Date(0);
+
+            const isNewer = !summary[key] || (newDate > existingDate);
 
             if (isNewer) {
+                // Calculate Derived Fields
+                let end = data.course?.end;
+                if (!end && newStartStr && data.course?.duration_days) {
+                    try {
+                        const s = new Date(newStartStr);
+                        s.setDate(s.getDate() + Number(data.course.duration_days));
+                        end = s.toISOString().split('T')[0];
+                    } catch (e) { /* ignore date error */ }
+                }
+
                 summary[key] = {
+                    medication: {
+                        name: medName,
+                        form: data.medication?.form || 'unknown'
+                    },
+                    dosage: {
+                        amount: data.dosage?.amount || 1, // field might be missing in old data
+                        unit: data.dosage?.unit || 'unit',
+                        route: data.dosage?.route || 'oral',
+                        frequency_per_day: data.dosage?.frequency_per_day || 1
+                    },
+                    course: {
+                        start: newStartStr,
+                        end: end,
+                        duration_days: data.course?.duration_days || data.supply?.days
+                    },
+                    reason: data.reason,
                     status: data.status,
-                    dose: data.dosage,
-                    start_date: data.authoredOn,
-                    requester: data.requester
+                    supply: {
+                        days: data.supply?.days,
+                        refills: data.supply?.refills
+                    }
                 };
             }
         }

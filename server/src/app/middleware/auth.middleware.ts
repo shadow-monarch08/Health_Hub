@@ -1,13 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
-
-const connectionString = env.DB_URL
-
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 interface AuthRequest extends Request {
     user?: any;

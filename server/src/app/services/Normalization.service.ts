@@ -1,13 +1,8 @@
 
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import logger from '../../config/logger';
 import { cleaningService } from './Cleaning.service';
-
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 export class NormalizationService {
 
@@ -112,13 +107,63 @@ export class NormalizationService {
         const codeableConcept = raw.medicationCodeableConcept;
         const result = this.extractCanonicalCode(codeableConcept, 'http://www.nlm.nih.gov/research/umls/rxnorm');
 
+        // Determine medication name
+        let medicationName = result.display || codeableConcept?.text;
+        if (!medicationName && raw.medicationReference && raw.medicationReference.display) {
+            medicationName = raw.medicationReference.display;
+        }
+
+        // Attempt to extract form from text if possible (naive)
+        // In real FHIR, form is on the Medication resource.
+        const form = raw.category?.[0]?.text || null;
+
+        // Dosage
+        const dosageInst = raw.dosageInstruction?.[0];
+        const doseAndRate = dosageInst?.doseAndRate?.[0];
+        const doseQuantity = doseAndRate?.doseQuantity;
+        const timing = dosageInst?.timing;
+
+        // Calculate frequency (naive)
+        let frequency = 1;
+        if (timing?.repeat?.frequency && timing?.repeat?.period) {
+            // e.g. 2 times per 1 day = 2
+            // This is complex, simplifying for now
+            frequency = timing.repeat.frequency;
+        }
+
+        // Supply
+        const dispense = raw.dispenseRequest;
+        const supplyDuration = dispense?.expectedSupplyDuration?.value;
+        const supplyRefills = dispense?.numberOfRepeatsAllowed;
+
+        // Course 
+        const startDate = raw.authoredOn || dispense?.validityPeriod?.start;
+        const endDate = dispense?.validityPeriod?.end;
+        // If end date missing, we might calculate it in Cleaning service or here if we have duration.
+
         return {
             data: {
                 status: raw.status,
-                medication: result.display || codeableConcept?.text,
-                dosage: raw.dosageInstruction?.[0]?.text,
-                authoredOn: raw.authoredOn,
-                requester: raw.requester?.display
+                medication: {
+                    name: medicationName,
+                    form: form
+                },
+                dosage: {
+                    amount: doseQuantity?.value,
+                    unit: doseQuantity?.unit,
+                    route: dosageInst?.route?.coding?.[0]?.display || dosageInst?.route?.text,
+                    frequency_per_day: frequency
+                },
+                course: {
+                    start: startDate,
+                    end: endDate,
+                    duration_days: supplyDuration // rough proxy if missing
+                },
+                reason: raw.reasonCode?.[0]?.text,
+                supply: {
+                    days: supplyDuration,
+                    refills: supplyRefills
+                }
             },
             code: result.code
         };

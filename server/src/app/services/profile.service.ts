@@ -1,12 +1,7 @@
-import { PrismaClient } from '../../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg'
+import prisma from '../../config/prisma';
 import { env } from "../../config/environment"
 import { createProfileSchema } from '../utils/validation/profile.schema';
 import { z } from 'zod';
-
-const connectionString = env.DB_URL
-const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
 
 export class ProfileService {
     async createProfile(userId: string, data: z.infer<typeof createProfileSchema>) {
