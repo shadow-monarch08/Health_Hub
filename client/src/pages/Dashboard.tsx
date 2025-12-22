@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { config } from '../config';
 import { useNavigate } from 'react-router-dom';
 import { profileApi } from '../api/profile';
 import type { Profile } from '../api/profile';
@@ -50,41 +51,62 @@ export default function Dashboard() {
     const handleFetchData = async (profileId: string) => {
         setLoading(true);
         setEhrData(null);
+        // Reset progress or add a progress state later if used in UI
         try {
             // 1. Trigger Sync
-            await ehrApi.sync(profileId);
+            const syncRes = await ehrApi.sync(profileId);
+            const { jobId } = syncRes.data; // Assuming response is { success: true, data: { jobId } }
 
-            // 2. Fetch Clean Data
-            const results = await Promise.allSettled([
-                ehrApi.fetchResource(profileId, 'Patient', 'clean'),
-                ehrApi.fetchResource(profileId, 'Condition', 'clean'),
-                ehrApi.fetchResource(profileId, 'AllergyIntolerance', 'clean'),
-                ehrApi.fetchResource(profileId, 'MedicationRequest', 'clean'),
-                ehrApi.fetchResource(profileId, 'Observation', 'clean'), // Lab Results + Vitals
-                ehrApi.fetchResource(profileId, 'Encounter', 'clean'),
-                ehrApi.fetchResource(profileId, 'Procedure', 'clean'),
-                ehrApi.fetchResource(profileId, 'Immunization', 'clean'),
-            ]);
+            // 2. Setup SSE
+            const sseUrl = `${config.endpoints.ehr}/stream/${jobId}`;
+            const eventSource = new EventSource(sseUrl);
 
-            const getData = (index: number) => {
-                const result = results[index];
-                return result.status === 'fulfilled' ? result.value : { error: 'Failed to fetch', details: result.reason };
+            eventSource.onopen = () => {
+                console.log("SSE connection opened");
             };
 
-            setEhrData({
-                patient: getData(0),
-                conditions: getData(1),
-                allergies: getData(2),
-                medications: getData(3),
-                labs: getData(4),
-                encounters: getData(5),
-                procedures: getData(6),
-                immunizations: getData(7),
-            });
+            eventSource.onmessage = (event) => {
+                try {
+                    const parsed = JSON.parse(event.data);
+                    // parsed = { event: 'fetching' | 'fetched' | 'complete', resource: string }
+
+                    if (parsed.event === 'complete') {
+                        console.log("Sync complete, fetching data...");
+                        eventSource.close();
+                        fetchCleanData(profileId);
+                    } else if (parsed.event === 'failed') {
+                        console.error(`Failed to sync ${parsed.resource}`);
+                    } else {
+                        console.log(`Progress: ${parsed.event} ${parsed.resource}`);
+                    }
+                } catch (e) {
+                    console.error("Error parsing SSE data", e);
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                console.error("SSE Error:", err);
+                eventSource.close();
+                setLoading(false);
+                alert("Connection lost during sync. Please try again.");
+            };
+
         } catch (error: any) {
             console.error('Fetch error:', error);
-            // Even if something catastrophic happens, try to set error state if simple
-            alert('Failed to fetch data: ' + error.message);
+            alert('Failed to start sync: ' + error.message);
+            setLoading(false);
+        }
+    };
+
+    const fetchCleanData = async (profileId: string) => {
+        try {
+            const response = await ehrApi.getProfileData(profileId);
+            const data = response.data; // Assuming API returns { success: true, data: { ... } }
+
+            setEhrData(data);
+        } catch (error: any) {
+            console.error('Data fetch error:', error);
+            alert('Failed to load data: ' + error.message);
         } finally {
             setLoading(false);
         }

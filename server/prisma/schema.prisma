@@ -119,14 +119,24 @@ model ProfileSummary {
   @@map("profile_summary")
 }
 
+enum JobStatus {
+  pending
+  syncing
+  success
+  failed
+}
+
 model ProfileSyncJob {
   id          String    @id @default(uuid())
+  jobId       String    @unique
   profileId   String
   profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  status      String    @default("pending") // pending | syncing | success | failed
+  status      JobStatus @default(pending)
+  provider    String    @default("epic")
   startedAt   DateTime  @default(now()) @db.Timestamptz
   completedAt DateTime? @db.Timestamptz
   error       String?
 
+  @@index([profileId])
   @@map("profile_sync_jobs")
 }

@@ -14,5 +14,8 @@ export const ehrApi = {
             method: 'POST',
             body: JSON.stringify({ profileId })
         });
+    },
+    getProfileData: async (profileId: string) => {
+        return apiClient(`${config.endpoints.ehr}/data/${profileId}`);
     }
 };
