@@ -22,6 +22,7 @@ const envSchema = z.object({
     EMAIL_USER: z.string(),
     EMAIL_PASSWORD: z.string(),
     EMAIL_FROM: z.string(),
+    FRONTEND_ORIGIN: z.string(),
 });
 
 const _env = envSchema.safeParse(process.env);

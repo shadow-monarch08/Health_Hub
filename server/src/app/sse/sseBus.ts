@@ -1,5 +1,6 @@
 // src/app/sse/sseManager.ts
 import { Response } from "express";
+import redisClient from "src/config/redis.config";
 
 const clients = new Map<string, Response>();
 
@@ -11,10 +12,6 @@ export function removeClient(jobId: string) {
     clients.delete(jobId);
 }
 
-export function sendEvent(jobId: string, event: string, resource: string) {
-    const res = clients.get(jobId);
-    if (!res) return;
-
-    const data = JSON.stringify({ event, resource });
-    res.write(`data: ${data}\n\n`);
+export function getClient(jobId: string) {
+    return clients.get(jobId);
 }

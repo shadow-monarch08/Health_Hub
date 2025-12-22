@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { config } from '../config';
+
 import { useNavigate } from 'react-router-dom';
 import { profileApi } from '../api/profile';
 import type { Profile } from '../api/profile';
@@ -51,58 +51,9 @@ export default function Dashboard() {
     const handleFetchData = async (profileId: string) => {
         setLoading(true);
         setEhrData(null);
-        // Reset progress or add a progress state later if used in UI
-        try {
-            // 1. Trigger Sync
-            const syncRes = await ehrApi.sync(profileId);
-            const { jobId } = syncRes.data; // Assuming response is { success: true, data: { jobId } }
-
-            // 2. Setup SSE
-            const sseUrl = `${config.endpoints.ehr}/stream/${jobId}`;
-            const eventSource = new EventSource(sseUrl);
-
-            eventSource.onopen = () => {
-                console.log("SSE connection opened");
-            };
-
-            eventSource.onmessage = (event) => {
-                try {
-                    const parsed = JSON.parse(event.data);
-                    // parsed = { event: 'fetching' | 'fetched' | 'complete', resource: string }
-
-                    if (parsed.event === 'complete') {
-                        console.log("Sync complete, fetching data...");
-                        eventSource.close();
-                        fetchCleanData(profileId);
-                    } else if (parsed.event === 'failed') {
-                        console.error(`Failed to sync ${parsed.resource}`);
-                    } else {
-                        console.log(`Progress: ${parsed.event} ${parsed.resource}`);
-                    }
-                } catch (e) {
-                    console.error("Error parsing SSE data", e);
-                }
-            };
-
-            eventSource.onerror = (err) => {
-                console.error("SSE Error:", err);
-                eventSource.close();
-                setLoading(false);
-                alert("Connection lost during sync. Please try again.");
-            };
-
-        } catch (error: any) {
-            console.error('Fetch error:', error);
-            alert('Failed to start sync: ' + error.message);
-            setLoading(false);
-        }
-    };
-
-    const fetchCleanData = async (profileId: string) => {
         try {
             const response = await ehrApi.getProfileData(profileId);
-            const data = response.data; // Assuming API returns { success: true, data: { ... } }
-
+            const data = response.data;
             setEhrData(data);
         } catch (error: any) {
             console.error('Data fetch error:', error);
@@ -111,6 +62,8 @@ export default function Dashboard() {
             setLoading(false);
         }
     };
+
+
 
     const handleLogout = () => {
         removeAuthToken();
@@ -176,7 +129,7 @@ export default function Dashboard() {
                                             style={primaryButtonStyle}
                                             disabled={loading}
                                         >
-                                            {loading ? 'Fetching...' : 'View Raw Data'}
+                                            {loading ? 'Loading...' : 'View Clean Data'}
                                         </button>
                                         <button
                                             onClick={() => handleConnect(profile.id)}

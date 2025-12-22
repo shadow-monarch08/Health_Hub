@@ -216,17 +216,17 @@ export class OAuthService {
       frontendRedirect = "https://frontend.example.com/epic/success";
     }
 
-    const syncStatus = await syncStatusService.resolveSyncStatus(profileId, provider);
+    // const syncStatus = await syncStatusService.resolveSyncStatus(profileId, provider);
 
-    if (syncStatus.status === "running") {
-      const targetUrl = `${frontendRedirect}?status=running&profileId=${profileId}&jobStatus=running&jobId=${syncStatus.jobId}`;
+    // if (syncStatus.status === "running") {
+    //   const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=running&jobId=${syncStatus.jobId}`;
 
-      return targetUrl
-    } else if (syncStatus.status === "cooldown") {
-      const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=cooldown&retryAfterSeconds=${syncStatus.retryAfterSeconds}`;
+    //   return targetUrl
+    // } else if (syncStatus.status === "cooldown") {
+    //   const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=cooldown&retryAfterSeconds=${syncStatus.retryAfterSeconds}`;
 
-      return targetUrl
-    }
+    //   return targetUrl
+    // }
 
     const jobId = syncJobId(profileId, provider)
 
@@ -236,18 +236,17 @@ export class OAuthService {
       userId,
       provider: provider
     }, {
-      jobId,
-      attempts: 2,
-      backoff: {
-        type: "exponential",
-        delay: 5000
-      },
-      removeOnComplete: true,
-      removeOnFail: true
+      jobId
     })
 
-    await prisma.profileSyncJob.create({
-      data: {
+    await prisma.profileSyncJob.upsert({
+      where: {
+        jobId
+      },
+      update: {
+        status: "pending"
+      },
+      create: {
         jobId,
         profileId,
         provider,
@@ -256,7 +255,7 @@ export class OAuthService {
     })
 
     // Clean redirect URL - append status or profileId but NOT full session token
-    const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobId=${jobId}jobStatus=pending`;
+    const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobId=${encodeURIComponent(jobId)}&jobStatus=pending`;
 
     return targetUrl
   }

@@ -4,7 +4,8 @@ import prisma from "../../config/prisma.config";
 import logger from "../../config/logger.config";
 import { uuid } from "zod";
 import { syncQueue } from "../../jobs/queues/sync.queue";
-import { addClient, removeClient } from "../sse/sseManager";
+import { addClient, removeClient } from "../sse/sseBus";
+import { env } from "../../config/environment.config";
 
 export class EHRController {
   /**
@@ -136,65 +137,56 @@ export class EHRController {
         return;
       }
 
-      // Trigger sync (fire and forget or await?)
-      // Awaiting it ensures we know if it *started* okay, but the service logic is largely async inside if we want.
-      // The service `syncProfile` awaits all fetches.
-      // For a "Background" job, we should probably not await the whole thing if it takes long.
-      // But for now, let's await it to give immediate feedback on success/fail.
-      const jobId = uuid({
-        version: "v4"
-      }).toString();
+      const jobData = await ehrService.createSyncJob(profileId, userId, "epic");
 
-      await prisma.profileSyncJob.create({
-        data: {
-          jobId,
-          profileId,
-          provider: "epic",
-          status: "pending",
-        },
-      });
-
-      await syncQueue.add("sync-ehrData", {
-        jobId,
-        profileId,
-        userId,
-        provider: "epic"
-      }, {
-        jobId,
-        attempts: 2,
-        backoff: {
-          type: "exponential",
-          delay: 5000
-        },
-        removeOnComplete: true,
-        removeOnFail: true
-      })
-
-      res.json({ success: true, data: { jobId } });
+      res.json({ success: true, data: jobData });
     } catch (error) {
       logger.error(`Error in sync:`, error);
       next(error);
     }
   }
 
-  sse(req: Request, res: Response, next: NextFunction): void {
+  async sse(req: Request, res: Response) {
     const jobId = req.params.jobId;
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
+    logger.info(`SSE connected: ${jobId}`);
 
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', env.FRONTEND_ORIGIN);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('X-Accel-Buffering', 'no'); // VERY IMPORTANT
     res.flushHeaders();
 
+    // 🔑 STEP 1: Read authoritative state
+    const status = await prisma.profileSyncJob.findUnique({
+      where: { jobId }
+    });
+
+    // 🔑 STEP 2: If already terminal → respond immediately
+    if (status && (status.status === 'success' || status.status === 'failed')) {
+      res.write(`data: ${JSON.stringify({
+        event: 'complete',
+        status: status.status,
+        error: status.error
+      })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // 🔑 STEP 3: Otherwise register SSE client
     addClient(jobId, res);
 
-    // Send initial connection event
     res.write(`data: ${JSON.stringify({ event: 'connected' })}\n\n`);
+    res.flush?.();
 
-    req.on("close", () => {
+    req.on('close', () => {
+      logger.info(`SSE disconnected: ${jobId}`);
       removeClient(jobId);
     });
   }
+
 }
 
 export const ehrController = new EHRController();

@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+// router.use(authenticate);
 
 // Route: GET /api/v1/ehr/:resource
 // Example: /api/v1/ehr/Observation?profileId=...

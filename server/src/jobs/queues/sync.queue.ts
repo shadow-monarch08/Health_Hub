@@ -1,7 +1,8 @@
 import { Queue } from "bullmq";
 import redisClient from "../../config/redis.config";
+import { SYNC_QUEUE_NAME } from "../constants/sync.constants";
 
-export const syncQueue = new Queue("sync-ehrData", {
+export const syncQueue = new Queue(SYNC_QUEUE_NAME, {
   connection: redisClient,
   defaultJobOptions: {
     attempts: 3,
@@ -9,9 +10,10 @@ export const syncQueue = new Queue("sync-ehrData", {
       type: "exponential",
       delay: 5000,
     },
+    delay: 3000,
     removeOnComplete: true,
     removeOnFail: {
-      age: 24 * 3600, // Keep failed jobs for 24 hours
+      age: 12 * 3600, // Keep failed jobs for 24 hours
       count: 1000,
     },
   },
