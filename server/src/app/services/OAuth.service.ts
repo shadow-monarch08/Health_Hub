@@ -216,17 +216,17 @@ export class OAuthService {
       frontendRedirect = "https://frontend.example.com/epic/success";
     }
 
-    // const syncStatus = await syncStatusService.resolveSyncStatus(profileId, provider);
+    const syncStatus = await syncStatusService.resolveSyncStatus(profileId, provider);
 
-    // if (syncStatus.status === "running") {
-    //   const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=running&jobId=${syncStatus.jobId}`;
+    if (syncStatus.status === "running") {
+      const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=running&jobId=${syncStatus.jobId}`;
 
-    //   return targetUrl
-    // } else if (syncStatus.status === "cooldown") {
-    //   const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=cooldown&retryAfterSeconds=${syncStatus.retryAfterSeconds}`;
+      return targetUrl
+    } else if (syncStatus.status === "cooldown") {
+      const targetUrl = `${frontendRedirect}?status=connected&profileId=${profileId}&jobStatus=cooldown&retryAfterSeconds=${syncStatus.retryAfterSeconds}`;
 
-    //   return targetUrl
-    // }
+      return targetUrl
+    }
 
     const jobId = syncJobId(profileId, provider)
 

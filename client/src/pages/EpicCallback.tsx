@@ -7,20 +7,21 @@ export default function EpicCallback() {
     const navigate = useNavigate();
     const statusParam = searchParams.get('status');
     const profileId = searchParams.get('profileId');
+    const jobStatus = searchParams.get('jobStatus');
     const jobId = searchParams.get('jobId');
+    const retryAfter = searchParams.get('retryAfterSeconds');
 
     const [status, setStatus] = useState<'loading' | 'syncing' | 'success' | 'error'>('loading');
     const [logs, setLogs] = useState<string[]>([]);
     const eventSourceRef = useRef<EventSource | null>(null);
 
     useEffect(() => {
-        if (statusParam !== 'connected' || !jobId) return;
         if (eventSourceRef.current) return;
 
+        // 1. Handle Active Sync (with Job ID)
         if (statusParam === 'connected' && jobId) {
 
             const sseUrl = `${config.endpoints.ehr}/sse/${encodeURIComponent(jobId)}`;
-            console.log('SSE URL:', sseUrl);
 
             const es = new EventSource(sseUrl);
             eventSourceRef.current = es;
@@ -33,14 +34,11 @@ export default function EpicCallback() {
             es.onmessage = (event) => {
                 try {
                     const parsed = JSON.parse(event.data);
-                    // parsed = { event: 'connected' | 'fetching' | 'fetched' | 'complete' | 'failed', resource: string }
 
                     if (parsed.event === 'complete') {
                         setLogs(prev => [...prev, "Sync complete! Redirecting..."]);
-                        es.close();
-                        setTimeout(() => {
-                            navigate(`/dashboard?connectedProfileId=${profileId}`);
-                        }, 1000);
+                        cleanup();
+                        setTimeout(() => navigateDashboard(), 1000);
                     } else if (parsed.event === 'failed') {
                         setLogs(prev => [...prev, `❌ Failed: ${parsed.resource || 'Unknown error'}`]);
                     } else if (parsed.event === 'connected') {
@@ -54,27 +52,45 @@ export default function EpicCallback() {
             };
 
             es.onerror = () => {
-                es.close();
-                eventSourceRef.current = null;
+                console.error("SSE connection error");
+                cleanup();
+                // Fallback redirect on error
+                setTimeout(() => navigateDashboard(), 2000);
             };
+
             return () => {
-                // ❗ Only close if component truly unmounts
-                es.close();
-                eventSourceRef.current = null;
+                cleanup();
             };
-        } else if (statusParam === 'connected' && profileId) {
-            // Fallback for cases without jobId (legacy or direct redirect)
+
+        }
+        // 2. Handle Cooldown
+        else if (statusParam === 'connected' && jobStatus === 'cooldown') {
+            setStatus('success'); // Or a specific 'info' status if UI supported it
+            setLogs([`Sync recently completed. Cooldown active for ${retryAfter || 'some'}s.`, `Redirecting...`]);
+            setTimeout(() => navigateDashboard(), 3000);
+        }
+        // 3. Fallback / Legacy (connected but no job info)
+        else if (statusParam === 'connected' && profileId) {
             setStatus('success');
-            setTimeout(() => {
-                navigate(`/dashboard?connectedProfileId=${profileId}`);
-            }, 2000);
-            return
-        } else {
+            setTimeout(() => navigateDashboard(), 2000);
+        }
+        // 4. Error State
+        else if (statusParam) {
             setStatus('error');
         }
 
+    }, [statusParam, profileId, jobId, jobStatus, navigate]);
 
-    }, [statusParam, profileId, jobId, navigate]);
+    const cleanup = () => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+    };
+
+    const navigateDashboard = () => {
+        navigate(`/dashboard?connectedProfileId=${profileId}`);
+    };
 
     const containerStyle: React.CSSProperties = {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

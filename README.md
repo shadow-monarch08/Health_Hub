@@ -19,7 +19,9 @@ Built with a focus on security, privacy, and user experience, Health Hub allows 
     -   Procedures & Encounters
 -   **Robust Architecture**: 
     -   **Backend**: Encrypted token storage (AES placeholder), Rate-limited APIs, Centralized Error Handling.
+    -   **Background Processing**: **BullMQ** & **Redis** powered job queues for asynchronous data synchronization and profile updates.
     -   **Frontend**: Fault-tolerant data fetching (partial loads supported), Terminal-style raw data viewer.
+    -   **Decoupled Sync & Fetch**: Separate pipelines for heavy background syncing and fast, aggregated data retrieval.
 
 ## 🛠️ Tech Stack
 
@@ -34,6 +36,7 @@ Built with a focus on security, privacy, and user experience, Health Hub allows 
 -   **Language**: TypeScript
 -   **Database**: PostgreSQL (via **Prisma ORM**)
 -   **Caching/State**: Redis (for OTPs and OAuth State)
+-   **Queues**: BullMQ (for background jobs)
 -   **Security**: Helmet, CORS, HPP, Compression
 
 ## 📂 Folder Structure
@@ -94,6 +97,8 @@ server/
     # Create .env file with DB_URL, REDIS_URL, EPIC_CLIENT_ID, etc.
     npx prisma migrate dev
     npm run dev
+    # In a separate terminal, to process background jobs:
+    npm run worker
     ```
 
 3.  **Setup Frontend**
