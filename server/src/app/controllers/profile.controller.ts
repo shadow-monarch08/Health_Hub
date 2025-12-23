@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { profileService } from '../services/profile.service';
+import { profileService } from '../services/profile/profile.service';
 import { createProfileSchema } from '../utils/validation/profile.schema';
 import { z } from 'zod';
 

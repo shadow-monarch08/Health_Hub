@@ -1,262 +1,269 @@
-> **System Role:**
-> You are a **Principal Backend Engineer & Healthcare Data Architect** with deep experience building scalable EHR aggregation systems.
-> You prioritize correctness, bounded data models, and long-term operability over convenience.
+## Context
+
+You are working on an existing **Node.js + TypeScript backend** for a healthcare platform (Health Hub).
+The system currently supports **one EHR provider (Epic)** and is architected in a way that will **not scale cleanly** to multiple EHRs such as **Athena** and later **Cerner**.
+
+The goal of this task is to **refactor the folder structure and responsibilities** to support **multiple EHR providers** using a **clean Adapter + Orchestrator architecture**, **without breaking existing functionality**.
+
+This is a **structural refactor**, not a feature rewrite.
 
 ---
 
-## 🧠 CONTEXT (NON-NEGOTIABLE)
+## 🎯 Objectives (Non-Negotiable)
 
-The system already implements a **three-layer medical data architecture**:
+1. **Preserve existing behavior**
 
+   * No breaking API contracts
+   * No DB schema changes
+   * No behavioral changes to Epic integration
+
+2. **Enable easy addition of new EHR providers**
+
+   * Athena must be addable with minimal effort
+   * No provider conditionals (`if/else`) outside EHR modules
+
+3. **Enforce strict separation of concerns**
+
+   * EHR-specific logic lives only inside EHR-specific folders
+   * Shared logic is truly vendor-agnostic
+
+4. **Maintain backward compatibility**
+
+   * Existing imports must be updated carefully
+   * Public service interfaces must remain stable
+
+---
+
+## 🧠 Core Architectural Principle (Must Follow)
+
+> **EHR-specific logic must live in EHR-specific modules.
+> Shared logic must never branch on provider.**
+
+You must apply the **Adapter + Orchestrator pattern**.
+
+---
+
+## 🧱 Target Folder Structure (Final State)
+
+You must refactor toward the following structure **without breaking the app**:
+
+```text
+src/app/
+├── controllers/
+│   ├── ehr.controller.ts          # Provider-agnostic
+│   ├── oauth.controller.ts
+│   ├── auth.controller.ts
+│   └── profile.controller.ts
+│
+├── routes/
+│   ├── ehr.routes.ts
+│   ├── oauth.routes.ts
+│   ├── auth.routes.ts
+│   └── profile.routes.ts
+│
+├── middleware/
+│   ├── auth.middleware.ts
+│   └── requestLogger.ts
+│
+├── ehr/                           # 🔥 New core module
+│   ├── common/
+│   │   ├── ehr.types.ts           # Canonical interfaces
+│   │   ├── ehr.constants.ts
+│   │   ├── unitRegistry.ts
+│   │   ├── codeResolver.ts
+│   │   └── ehrProvider.interface.ts
+│   │
+│   ├── epic/
+│   │   ├── epic.fetcher.ts
+│   │   ├── epic.normalizer.ts
+│   │   ├── epic.cleaner.ts
+│   │   ├── epic.oauth.ts
+│   │   └── epic.config.ts
+│   │
+│   ├── athena/                    # Empty initially (scaffold only)
+│   │   ├── athena.fetcher.ts
+│   │   ├── athena.normalizer.ts
+│   │   ├── athena.cleaner.ts
+│   │   ├── athena.oauth.ts
+│   │   └── athena.config.ts
+│   │
+│   └── ehr.registry.ts            # Provider resolver
+│
+├── services/
+│   ├── sync/
+│   │   ├── sync.service.ts        # Orchestrator only
+│   │   ├── sync.worker.ts
+│   │   └── syncStatus.service.ts
+│   │
+│   ├── auth/
+│   │   ├── auth.service.ts
+│   │   └── session.service.ts
+│   │
+│   ├── profile/
+│   │   └── profile.service.ts
+│   │
+│   ├── crypto/
+│   │   └── crypto.service.ts
+│   │
+│   └── notification/
+│       └── email.service.ts
+│
+├── sse/
+│   ├── sseBus.ts
+│   └── sseSubscriber.ts
+│
+├── utils/
+│   ├── validation/
+│   └── logger.ts
+│
+└── index.ts
 ```
-RAW        → Immutable external truth (FHIR as-is)
-NORMALIZED → Provider-agnostic clinical facts (one event per row)
-CLEAN      → Patient-facing, dashboard-ready summaries
-```
-
-The **CLEAN layer has been incorrectly implemented previously** by storing unbounded lists of historical data.
-
-This prompt defines the **final, correct, irreversible contract** for the CLEAN layer.
 
 ---
 
-## 🚨 CRITICAL FIRST STEP (MANDATORY)
+## 🔁 Refactoring Rules (VERY IMPORTANT)
 
-### ❗ DELETE ALL EXISTING CLEAN DATA
+### 1️⃣ Do NOT rewrite logic
 
-Before implementing anything new:
-
-* **Delete all rows** from `profile_fhir_resources_clean`
-* Treat all existing data as **invalid**
-* Rebuild CLEAN strictly from NORMALIZED
-
-Reason:
-
-> CLEAN is a derived projection.
-> Incorrect projections must never be preserved.
+* Move logic, do not redesign it
+* Preserve method signatures unless explicitly stated
 
 ---
 
-## 🎯 PURPOSE OF `profile_fhir_resources_clean`
+### 2️⃣ Split services, don’t overload them
 
-> **The CLEAN table stores a SMALL, BOUNDED, PATIENT-FACING SUMMARY of medical data — NOT history.**
-
-It exists to answer:
-
-* “What does the patient’s health look like right now?”
-* “What should the dashboard show instantly?”
-* “What is the latest clinically relevant state?”
-
-It does **NOT** exist to:
-
-* Store history
-* Support pagination
-* Act as a queryable data source
-* Replace NORMALIZED
+| Existing File              | Refactor Action                       |
+| -------------------------- | ------------------------------------- |
+| `EHR.service.ts`           | Split into EHR-specific fetchers      |
+| `Normalization.service.ts` | Split into provider normalizers       |
+| `Cleaning.service.ts`      | Extract common logic, allow overrides |
+| `OAuth.service.ts`         | Split per-provider OAuth handlers     |
 
 ---
 
-## 🧱 ABSOLUTE RULES (DO NOT VIOLATE)
+### 3️⃣ Controllers MUST remain provider-agnostic
 
-1. **CLEAN MUST BE BOUNDED**
+Controllers must NEVER:
 
-   * No unbounded arrays
-   * No full history
-   * Payload must stay small (< ~50KB)
+* Import Epic/Athena files
+* Branch on provider logic
 
-2. **NO PAGINATION IN CLEAN**
+Example (correct):
 
-   * If pagination is needed → data belongs in NORMALIZED
-
-3. **ONE ROW PER (profile_id, resource_type)**
-
-   * Enforced by DB uniqueness
-
-4. **CLEAN IS REBUILDABLE**
-
-   * Must be safe to delete and regenerate at any time
-
-5. **CLEAN IS READ-OPTIMIZED**
-
-   * Designed for dashboards and summaries only
-
----
-
-## 🗂️ TABLE CONTRACT — `profile_fhir_resources_clean`
-
-Each row represents **the system’s best current summary** for one resource type.
-
-### Required Columns
-
-* `profile_id`
-* `resource_type`
-* `clean_json` → summary only
-* `sources` → contributing providers (deduplicated)
-* `created_at`
-
-### Uniqueness
-
-```sql
-UNIQUE (profile_id, resource_type)
+```ts
+const ehr = EhrRegistry.get(provider);
+await ehr.sync(profileId);
 ```
 
 ---
 
-## 🧹 HOW RAW & NORMALIZED DATA FEEDS CLEAN
+### 4️⃣ Introduce a strict EHR Provider Interface
 
-### Source of truth
+Create `ehr/common/ehrProvider.interface.ts`:
 
-* CLEAN is derived **only** from `profile_fhir_resources_normalized`
-* RAW is never read directly for CLEAN
-
-### Input constraint
-
-* Cleaning logic must operate on a **bounded subset**:
-
-  * Latest records
-  * Relevant records
-  * Never full history
-
----
-
-## 📦 WHAT `clean_json` MUST CONTAIN (BY RESOURCE)
-
-### 🩺 Condition
-
-* Active conditions only
-* Most recent clinical status
-* Onset date if known
-
-```json
-{
-  "Hypertension": {
-    "code": "I10",
-    "status": "active",
-    "onset_date": "2018-03-12"
-  }
+```ts
+export interface EhrProvider {
+  fetch(profileId: string): Promise<void>;
+  normalize(rawData: any[]): NormalizedRecord[];
+  clean(normalizedData: NormalizedRecord[]): CleanRecord[];
+  sync(profileId: string): Promise<void>;
 }
 ```
 
+All providers MUST implement this interface.
+
 ---
 
-### 💊 MedicationRequest
+### 5️⃣ Implement `ehr.registry.ts`
 
-* Currently active medications only
-* Latest dosage & instructions
-* Therapy type (acute vs long-term)
+This file is the **only place** allowed to map providers:
 
-```json
-{
-  "Drospirenone–Ethinyl Estradiol": {
-    "status": "active",
-    "dose": "1 tablet",
-    "frequency": "once daily",
-    "route": "oral",
-    "start_date": "2019-05-28"
-  }
-}
+```ts
+export const EhrRegistry = {
+  epic: EpicProvider,
+  athena: AthenaProvider
+};
+```
+
+No other file should resolve providers.
+
+---
+
+## 📦 Import Refactoring Rules
+
+You MUST:
+
+* Update all imports to reflect new locations
+* Avoid circular dependencies
+* Prefer absolute imports if project already supports them
+* Keep barrel exports minimal and explicit
+
+Example:
+
+```ts
+// ❌ Old
+import { normalize } from "../services/Normalization.service";
+
+// ✅ New
+import { normalizeEpic } from "@/app/ehr/epic/epic.normalizer";
 ```
 
 ---
 
-### 🧪 Observation (Labs & Vitals)
+## 🧪 Safety Checks (Must Pass)
 
-* Latest value per test
-* Optional previous value
-* Trend (if computable)
+After refactor:
 
-```json
-{
-  "Hemoglobin A1c": {
-    "latest": {
-      "value": 7.2,
-      "unit": "%",
-      "measured_at": "2024-02-20",
-      "flag": "high"
-    },
-    "previous": {
-      "value": 6.9,
-      "measured_at": "2023-10-11"
-    },
-    "trend": "up"
-  }
-}
-```
-
-❌ Never store full lab history here.
+* Epic sync flow must work unchanged
+* OAuth flow must work unchanged
+* Background sync jobs must work unchanged
+* SSE updates must work unchanged
+* All existing tests (if any) must pass
 
 ---
 
-### 💉 Immunization
+## 🚫 Hard Guardrails (DO NOT VIOLATE)
 
-* Vaccines received
-* Latest dose per vaccine
-* Completion status
-
----
-
-### ⚠️ AllergyIntolerance
-
-* Active allergies only
-* Severity & reaction summary
+* ❌ No `if (provider === 'epic')` outside `ehr/`
+* ❌ No shared normalizer across providers
+* ❌ No provider logic in controllers
+* ❌ No breaking API contracts
+* ❌ No DB schema changes
 
 ---
 
-### 🏥 Encounter / Procedure
+## 📌 Output Expectations
 
-* Most recent encounters only
-* No full visit history
+When performing this task, you must:
 
----
-
-## 🧠 WHAT MUST NEVER GO INTO CLEAN
-
-❌ Full historical series
-❌ Paginated data
-❌ Free-text notes
-❌ Provider-specific metadata
-❌ Raw FHIR JSON
-❌ Data requiring filtering or querying
-
-If it needs `LIMIT`, `OFFSET`, or `CURSOR` → it does NOT belong in CLEAN.
+1. Clearly state **what files are moved**
+2. Clearly state **what files are split**
+3. Provide **updated import paths**
+4. Preserve all existing logic
+5. Scaffold Athena provider with TODOs only (no implementation yet)
 
 ---
 
-## 🔄 CLEANING STRATEGY (IMPLEMENTATION RULES)
+## 🧠 Mental Model to Follow
 
-1. Fetch **bounded normalized data**
-2. Group by canonical clinical concept
-3. Select “best” or “latest” record
-4. Compute minimal derived fields (trend, status)
-5. Overwrite existing CLEAN row atomically
-
-CLEAN is **replace-on-write**, not incremental history.
+* **Raw data is immutable**
+* **Normalization is provider-specific**
+* **Cleaning is mostly generic**
+* **Sync is orchestration only**
+* **Providers are plug-ins, not branches**
 
 ---
 
-## 🧪 ERROR HANDLING
+## ✅ Final Goal
 
-* If cleaning fails:
+After this refactor:
 
-  * Log error
-  * Do NOT partially update CLEAN
-* CLEAN must never be left in a half-built state
-
----
-
-## 🧠 FINAL PRINCIPLE (DO NOT FORGET)
-
-> **CLEAN is a summary, not a store.
-> NORMALIZED is history, not UI.
-> RAW is truth, not convenience.**
-
-If any implementation violates this, **reject it**.
+> Adding Athena should require **only** creating files under `ehr/athena/`
+> No existing code should need modification.
 
 ---
 
-### ✅ BEGIN IMPLEMENTATION
-
-1. **Delete all existing CLEAN data**
-2. Enforce DB uniqueness
-3. Rebuild CLEAN strictly per this contract
-4. Validate payload size and boundedness
+**Do not rush.
+Do not simplify.
+Do not invent features.
+Execute this refactor precisely and safely.**

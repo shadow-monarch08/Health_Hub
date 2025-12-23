@@ -1,20 +1,23 @@
 import { Request, Response, NextFunction } from "express";
-import { oAuthService } from "../services/OAuth.service";
+import { EhrRegistry } from "../ehr/ehr.registry";
+import { profileService } from "../services/profile/profile.service";
+import { syncService } from "../services/sync/sync.service";
 import logger from "../../config/logger.config";
 
 export class OAuthController {
+
   /**
-   * Initiates the Epic OAuth2 flow by redirecting the user to Epic's authorization page.
+   * Initiates the OAuth2 flow by redirecting the user to Provider's authorization page.
+   * Path: /:provider/connect
    */
-  /**
-   * Initiates the Epic OAuth2 flow by redirecting the user to Epic's authorization page.
-   */
-  async authorizeEpic(
+  async connect(
     req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
+      const providerName = req.params.provider;
+
       // Validate user authentication
       if (!(req as any).user || !(req as any).user.id) {
         res.status(401).json({ success: false, message: "Unauthorized" });
@@ -29,30 +32,28 @@ export class OAuthController {
         return;
       }
 
-      // TODO: Validate that profileId belongs to userId (optional here since we check again in callback, but good for UX)
+      const provider = EhrRegistry.get(providerName);
+      const redirectUrl = await provider.auth.createAuthorizationRedirect(userId, profileId);
 
-      const redirectUrl = await oAuthService.createAuthorizationRedirect(
-        userId,
-        profileId
-      );
       // Return URL for frontend to redirect
       res.json({ url: redirectUrl });
     } catch (error) {
-      logger.error("Error in authorizeEpic:", error);
+      logger.error("Error in connect:", error);
       next(error);
     }
   }
 
   /**
-   * Handles the callback from Epic, exchanges code for token, fetches patient demographics,
-   * and redirects to the frontend.
+   * Handles the callback from Provider.
+   * Path: /:provider/callback
    */
-  async epicCallback(
+  async callback(
     req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
+      const providerName = req.params.provider;
       const { code, state } = req.query;
 
       if (!code || !state) {
@@ -62,27 +63,28 @@ export class OAuthController {
         return;
       }
 
+      const provider = EhrRegistry.get(providerName);
+
       // Exchange code for tokens and get state context (userId, profileId)
-      const { token, stateData } = await oAuthService.exchangeCodeForToken(
+      const { token, stateData } = await provider.auth.exchangeCodeForToken(
         state as string,
         code as string
       );
       const { userId, profileId } = stateData;
 
-      // Store connection in DB (replaces storeEpicSession)
-      await oAuthService.storeConnection(userId, profileId, token);
+      // Store connection in DB
+      await profileService.storeConnection(userId, profileId, providerName, token);
 
-      // Log success (but never log tokens!)
       logger.info(
-        `Successfully completed Epic OAuth flow. Profile: ${profileId}`
+        `Successfully completed ${providerName} OAuth flow. Profile: ${profileId}`
       );
 
-      const targetUrl = await oAuthService.createSyncJob(profileId, userId, "epic");
+      const jobData = await syncService.createSyncJob(profileId, userId, providerName);
+
+      const targetUrl = jobData.targetUrl || "/";
 
       logger.info(`FINAL REDIRECT ATTEMPT: ${targetUrl}`);
 
-      // Explicitly saving session before redirect if using express-session (not used here but good practice)
-      // res.status(302).redirect(targetUrl); // Explicit 302
       res.send(`
             <!DOCTYPE html>
             <html>
@@ -96,8 +98,7 @@ export class OAuthController {
             </html>
         `);
     } catch (error) {
-      logger.error("Error in epicCallback:", error);
-      // We could redirect to a frontend error page here too, but for now standard error handling:
+      logger.error("Error in callback:", error);
       next(error);
     }
   }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { authService } from '../services/auth.service';
+import { authService } from '../services/auth/auth.service';
 import { signupSchema, verifyOtpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../utils/validation/auth.schema';
 import { z } from 'zod';
 

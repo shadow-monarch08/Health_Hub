@@ -1,9 +1,9 @@
-// src/app/workers/medication.worker.ts
+
 import { Job, Worker } from "bullmq";
-import redisClient from "../../config/redis.config";
-import { syncService } from "../../app/services/sync.service";
-import { SYNC_QUEUE_NAME } from "../constants/sync.constants";
-import logger from "../../config/logger.config";
+import redisClient from "../../../config/redis.config";
+import { syncService } from "./sync.service";
+import { SYNC_QUEUE_NAME } from "../../../jobs/constants/sync.constants";
+import logger from "../../../config/logger.config";
 
 interface JobData {
     jobId: string;

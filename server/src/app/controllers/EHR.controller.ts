@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { ehrService } from "../services/EHR.service";
-import prisma from "../../config/prisma.config";
+import { profileService } from "../services/profile/profile.service";
+import { syncService } from "../services/sync/sync.service";
 import logger from "../../config/logger.config";
-import { uuid } from "zod";
-import { syncQueue } from "../../jobs/queues/sync.queue";
 import { addClient, removeClient } from "../sse/sseBus";
 import { env } from "../../config/environment.config";
+import prisma from "../../config/prisma.config";
 
 export class EHRController {
   /**
@@ -27,7 +26,6 @@ export class EHRController {
         res.status(401).json({ success: false, message: "Unauthorized" });
         return;
       }
-      const userId = (req as any).user.id;
 
       if (!profileId) {
         res.status(400).json({ success: false, message: "Missing profileId" });
@@ -44,11 +42,7 @@ export class EHRController {
       const mode = req.query.mode as string; // 'raw' | 'clean'
 
       if (mode === "clean") {
-        // Fetch from Clean Table
-        // We need to access prisma directly or add a method to EHRService.
-        // Let's import prisma client here or use a service method.
-        // adhering to pattern: let's use ehrService to fetch clean data.
-        const data = await ehrService.getCleanResource(profileId, resource);
+        const data = await profileService.getCleanResource(profileId, resource);
         res.json({
           success: true,
           resourceType: resource,
@@ -58,28 +52,12 @@ export class EHRController {
         return;
       }
 
-      // const result = await ehrService.fetchResource(
-      //   userId,
-      //   profileId,
-      //   resource
-      // );
-      // res.json(result);
+      // Default behavior or Raw fetch not supported directly via this endpoint anymore
+      res.json({ success: false, message: "Raw mode not supported via this endpoint" });
+
     } catch (error: any) {
       logger.error(`Error in getResource (${req.params.resource}):`, error);
-      if (error.message.includes("Profile not connected")) {
-        res.status(404).json({
-          success: false,
-          message: "Profile not connected to provider",
-        });
-      } else if (error.message.includes("Unauthorized")) {
-        res.status(401).json({ success: false, message: "Unauthorized" });
-      } else if (error.message.includes("Forbidden")) {
-        res.status(403).json({ success: false, message: "Forbidden" });
-      } else {
-        res
-          .status(500)
-          .json({ success: false, message: "Internal Server Error" });
-      }
+      res.status(500).json({ success: false, message: "Internal Server Error" });
     }
   }
 
@@ -106,7 +84,7 @@ export class EHRController {
         return;
       }
 
-      const data = await ehrService.getProfileData(profileId);
+      const data = await profileService.getProfileData(profileId);
       res.json({
         success: true,
         data,
@@ -120,11 +98,13 @@ export class EHRController {
   /**
    * Triggers a full background sync.
    * Route: POST /api/v1/ehr/sync
-   * Body: { profileId }
+   * Body: { profileId, provider }
    */
   async sync(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const profileId = req.body.profileId;
+      const provider = req.body.provider || "epic"; // Default to epic for now
+
       // Validate auth
       if (!(req as any).user || !(req as any).user.id) {
         res.status(401).json({ success: false, message: "Unauthorized" });
@@ -137,7 +117,8 @@ export class EHRController {
         return;
       }
 
-      const jobData = await ehrService.createSyncJob(profileId, userId, "epic");
+      const jobData = await syncService.createSyncJob(profileId, userId, provider);
+      delete jobData.targetUrl;
 
       res.json({ success: true, data: jobData });
     } catch (error) {
@@ -156,7 +137,7 @@ export class EHRController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', env.FRONTEND_ORIGIN);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('X-Accel-Buffering', 'no'); // VERY IMPORTANT
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
     // 🔑 STEP 1: Read authoritative state

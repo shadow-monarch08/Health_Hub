@@ -1,12 +1,12 @@
-// src/app/services/syncStatus.service.ts
-import { syncQueue } from "../../jobs/queues/sync.queue";
-import redisClient from "../../config/redis.config";
-import prisma from "../../config/prisma.config";
+
+import { syncQueue } from "../../../jobs/queues/sync.queue";
+import redisClient from "../../../config/redis.config";
+import prisma from "../../../config/prisma.config";
 import {
   SYNC_COOLDOWN_MS,
   syncJobId,
   cooldownKey
-} from "../../jobs/constants/sync.constants";
+} from "../../../jobs/constants/sync.constants";
 
 
 export class SyncStatusService {

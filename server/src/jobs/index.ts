@@ -12,4 +12,4 @@ process.on('unhandledRejection', err => {
 });
 
 // THIS import registers the worker
-import './workers/sync.worker';
+import '../app/services/sync/sync.worker';

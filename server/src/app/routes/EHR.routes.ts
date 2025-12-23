@@ -1,10 +1,7 @@
 import { Router } from "express";
-import { ehrController } from "../controllers/EHR.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { ehrController } from "../controllers/ehr.controller";
 
 const router = Router();
-
-// router.use(authenticate);
 
 // Route: GET /api/v1/ehr/:resource
 // Example: /api/v1/ehr/Observation?profileId=...

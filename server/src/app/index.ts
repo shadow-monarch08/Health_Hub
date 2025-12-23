@@ -26,8 +26,8 @@ startSseSubscriber();
 
 // Routes
 import authRoutes from './routes/auth.routes';
-import oAuthRoutes from './routes/OAuth.routes';
-import ehrRoutes from './routes/EHR.routes';
+import oAuthRoutes from './routes/oauth.routes';
+import ehrRoutes from './routes/ehr.routes';
 import profileRoutes from './routes/profile.routes';
 
 app.use('/api/v1/auth', authRoutes);
