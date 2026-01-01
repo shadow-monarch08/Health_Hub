@@ -162,4 +162,4 @@ server/
 This project uses a standard `Bearer` token implementation for API access. OAuth tokens from Epic are stored in the database. Ensure `PROFILE_ENCRYPTION_KEY` is set in production to encrypt these sensitive tokens at rest.
 
 ---
-*Built with ❤️ by Narendra*
+*Built with ❤️ by Q-Labs*
