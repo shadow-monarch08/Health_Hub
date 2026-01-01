@@ -1,269 +1,204 @@
-## Context
+## Health Hub — Modern Signup Page (Mobile)
 
-You are working on an existing **Node.js + TypeScript backend** for a healthcare platform (Health Hub).
-The system currently supports **one EHR provider (Epic)** and is architected in a way that will **not scale cleanly** to multiple EHRs such as **Athena** and later **Cerner**.
+### Role & Context
 
-The goal of this task is to **refactor the folder structure and responsibilities** to support **multiple EHR providers** using a **clean Adapter + Orchestrator architecture**, **without breaking existing functionality**.
+You are a **senior product designer** designing a **mobile-first signup page** for **Health Hub**, a **modern healthcare application** that gives users secure access to their medical data.
 
-This is a **structural refactor**, not a feature rewrite.
+This task is **purely about design and UX exploration**.
 
----
+🚫 Do NOT focus on backend logic
+🚫 Do NOT explain React Native specifics
+🚫 Do NOT copy existing apps
+🚫 Do NOT reuse any fixed design system blindly
 
-## 🎯 Objectives (Non-Negotiable)
-
-1. **Preserve existing behavior**
-
-   * No breaking API contracts
-   * No DB schema changes
-   * No behavioral changes to Epic integration
-
-2. **Enable easy addition of new EHR providers**
-
-   * Athena must be addable with minimal effort
-   * No provider conditionals (`if/else`) outside EHR modules
-
-3. **Enforce strict separation of concerns**
-
-   * EHR-specific logic lives only inside EHR-specific folders
-   * Shared logic is truly vendor-agnostic
-
-4. **Maintain backward compatibility**
-
-   * Existing imports must be updated carefully
-   * Public service interfaces must remain stable
+You may implement the design using **React (web)** for **mobile screen size**, as a visual prototype only.
 
 ---
 
-## 🧠 Core Architectural Principle (Must Follow)
+## 🎯 Objective
 
-> **EHR-specific logic must live in EHR-specific modules.
-> Shared logic must never branch on provider.**
+Design a **signup experience** that feels:
 
-You must apply the **Adapter + Orchestrator pattern**.
+* Modern and fresh
+* Calm and reassuring
+* Trustworthy and professional
+* Effortless and non-intimidating
 
----
+The user should feel:
 
-## 🧱 Target Folder Structure (Final State)
+> “This app respects my health data and my time.”
 
-You must refactor toward the following structure **without breaking the app**:
-
-```text
-src/app/
-├── controllers/
-│   ├── ehr.controller.ts          # Provider-agnostic
-│   ├── oauth.controller.ts
-│   ├── auth.controller.ts
-│   └── profile.controller.ts
-│
-├── routes/
-│   ├── ehr.routes.ts
-│   ├── oauth.routes.ts
-│   ├── auth.routes.ts
-│   └── profile.routes.ts
-│
-├── middleware/
-│   ├── auth.middleware.ts
-│   └── requestLogger.ts
-│
-├── ehr/                           # 🔥 New core module
-│   ├── common/
-│   │   ├── ehr.types.ts           # Canonical interfaces
-│   │   ├── ehr.constants.ts
-│   │   ├── unitRegistry.ts
-│   │   ├── codeResolver.ts
-│   │   └── ehrProvider.interface.ts
-│   │
-│   ├── epic/
-│   │   ├── epic.fetcher.ts
-│   │   ├── epic.normalizer.ts
-│   │   ├── epic.cleaner.ts
-│   │   ├── epic.oauth.ts
-│   │   └── epic.config.ts
-│   │
-│   ├── athena/                    # Empty initially (scaffold only)
-│   │   ├── athena.fetcher.ts
-│   │   ├── athena.normalizer.ts
-│   │   ├── athena.cleaner.ts
-│   │   ├── athena.oauth.ts
-│   │   └── athena.config.ts
-│   │
-│   └── ehr.registry.ts            # Provider resolver
-│
-├── services/
-│   ├── sync/
-│   │   ├── sync.service.ts        # Orchestrator only
-│   │   ├── sync.worker.ts
-│   │   └── syncStatus.service.ts
-│   │
-│   ├── auth/
-│   │   ├── auth.service.ts
-│   │   └── session.service.ts
-│   │
-│   ├── profile/
-│   │   └── profile.service.ts
-│   │
-│   ├── crypto/
-│   │   └── crypto.service.ts
-│   │
-│   └── notification/
-│       └── email.service.ts
-│
-├── sse/
-│   ├── sseBus.ts
-│   └── sseSubscriber.ts
-│
-├── utils/
-│   ├── validation/
-│   └── logger.ts
-│
-└── index.ts
-```
+This is a **health app**, not a social or fintech product — but it should still feel **current and premium**.
 
 ---
 
-## 🔁 Refactoring Rules (VERY IMPORTANT)
+## 🧠 Emotional & Visual Mood
 
-### 1️⃣ Do NOT rewrite logic
+The signup page should communicate:
 
-* Move logic, do not redesign it
-* Preserve method signatures unless explicitly stated
+* Safety
+* Privacy
+* Clarity
+* Simplicity
+* Quiet confidence
 
----
+Avoid:
 
-### 2️⃣ Split services, don’t overload them
+* Loud or aggressive visuals
+* Flashy gradients
+* Overly playful animations
+* Dense or cluttered layouts
+* “Startup hype” language
 
-| Existing File              | Refactor Action                       |
-| -------------------------- | ------------------------------------- |
-| `EHR.service.ts`           | Split into EHR-specific fetchers      |
-| `Normalization.service.ts` | Split into provider normalizers       |
-| `Cleaning.service.ts`      | Extract common logic, allow overrides |
-| `OAuth.service.ts`         | Split per-provider OAuth handlers     |
-
----
-
-### 3️⃣ Controllers MUST remain provider-agnostic
-
-Controllers must NEVER:
-
-* Import Epic/Athena files
-* Branch on provider logic
-
-Example (correct):
-
-```ts
-const ehr = EhrRegistry.get(provider);
-await ehr.sync(profileId);
-```
+Aim for **modern minimalism with warmth**.
 
 ---
 
-### 4️⃣ Introduce a strict EHR Provider Interface
+## 🧱 Design Norms & Guidance (High-Level)
 
-Create `ehr/common/ehrProvider.interface.ts`:
+### Layout
 
-```ts
-export interface EhrProvider {
-  fetch(profileId: string): Promise<void>;
-  normalize(rawData: any[]): NormalizedRecord[];
-  clean(normalizedData: NormalizedRecord[]): CleanRecord[];
-  sync(profileId: string): Promise<void>;
-}
-```
+* Mobile-first layout
+* Clear visual hierarchy
+* Comfortable spacing
+* No visual overload
+* Content should “breathe”
 
-All providers MUST implement this interface.
+### Typography
 
----
+* Highly readable
+* Clean, modern sans-serif
+* Clear distinction between:
 
-### 5️⃣ Implement `ehr.registry.ts`
+  * Headline
+  * Supporting text
+  * Input labels
+  * Actions
 
-This file is the **only place** allowed to map providers:
+### Color & Tone
 
-```ts
-export const EhrRegistry = {
-  epic: EpicProvider,
-  athena: AthenaProvider
-};
-```
+* Use color to **guide**, not decorate
+* Favor calm, medical-safe tones
+* Use contrast thoughtfully for focus and actions
 
-No other file should resolve providers.
+### Inputs & Forms
 
----
-
-## 📦 Import Refactoring Rules
-
-You MUST:
-
-* Update all imports to reflect new locations
-* Avoid circular dependencies
-* Prefer absolute imports if project already supports them
-* Keep barrel exports minimal and explicit
-
-Example:
-
-```ts
-// ❌ Old
-import { normalize } from "../services/Normalization.service";
-
-// ✅ New
-import { normalizeEpic } from "@/app/ehr/epic/epic.normalizer";
-```
+* Signup should feel **easy and progressive**
+* Reduce friction and cognitive load
+* Clear labeling and helper text
+* Errors should feel calm and supportive, not alarming
 
 ---
 
-## 🧪 Safety Checks (Must Pass)
+## 🧩 UI Components
 
-After refactor:
+You are encouraged to **reuse existing UI components** where appropriate (e.g., input fields, buttons, cards).
 
-* Epic sync flow must work unchanged
-* OAuth flow must work unchanged
-* Background sync jobs must work unchanged
-* SSE updates must work unchanged
-* All existing tests (if any) must pass
+If the design requires it:
 
----
+* You may **create new UI components**
+* New components should remain **generic and reusable**
+* Avoid one-off or overly specific components
 
-## 🚫 Hard Guardrails (DO NOT VIOLATE)
-
-* ❌ No `if (provider === 'epic')` outside `ehr/`
-* ❌ No shared normalizer across providers
-* ❌ No provider logic in controllers
-* ❌ No breaking API contracts
-* ❌ No DB schema changes
+The goal is a design that can scale across the app.
 
 ---
 
-## 📌 Output Expectations
+## 🔐 Signup-Specific Considerations
 
-When performing this task, you must:
+* The user is sharing **sensitive personal information**
+* Trust signals matter (copy, spacing, tone)
+* Privacy reassurance should be present but subtle
+* The flow should not feel long or demanding
 
-1. Clearly state **what files are moved**
-2. Clearly state **what files are split**
-3. Provide **updated import paths**
-4. Preserve all existing logic
-5. Scaffold Athena provider with TODOs only (no implementation yet)
+You may choose to:
 
----
+* Split signup into steps
+* Keep it single-screen but visually lightweight
+* Use gentle guidance or microcopy
 
-## 🧠 Mental Model to Follow
-
-* **Raw data is immutable**
-* **Normalization is provider-specific**
-* **Cleaning is mostly generic**
-* **Sync is orchestration only**
-* **Providers are plug-ins, not branches**
+Explain **why** you chose the approach.
 
 ---
 
-## ✅ Final Goal
+## ✍️ Copywriting Tone
 
-After this refactor:
+Language should be:
 
-> Adding Athena should require **only** creating files under `ehr/athena/`
-> No existing code should need modification.
+* Clear
+* Respectful
+* Calm
+* Professional
+
+Avoid:
+
+* Emojis
+* Slang
+* Overly casual phrases
+* Marketing-heavy wording
+
+Example mindset:
+
+> “We are here to help you manage your health, safely.”
 
 ---
 
-**Do not rush.
-Do not simplify.
-Do not invent features.
-Execute this refactor precisely and safely.**
+## 📱 Screens & States to Consider
+
+At minimum, design:
+
+* Default signup state
+* Focused input state
+* Error state (gentle)
+* Disabled / loading state
+
+You do NOT need to implement full flows — focus on **visual clarity and UX intent**.
+
+---
+
+## 🧪 Creativity Encouraged (Important)
+
+You are encouraged to:
+
+* Explore different visual directions
+* Experiment with layout balance
+* Propose subtle motion or interaction ideas
+* Suggest why your design feels *modern yet medical*
+
+Creativity is welcome — **chaos is not**.
+
+---
+
+## 🏁 Final Output Expectations
+
+Your output should include:
+
+* A modern signup page design (React-based, mobile-sized)
+* Clear explanation of:
+
+  * Design choices
+  * Visual hierarchy
+  * Emotional intent
+* Notes on how this design fits a **professional health app**
+* Optional suggestions for refinement
+
+This is **exploration**, not final production UI.
+
+---
+
+## 🎯 Final Goal
+
+> Create a **modern, elegant signup page** that feels
+> **safe enough for health data**,
+> **modern enough for today’s users**,
+> and **simple enough for anyone to use**.
+
+---
+
+If needed, you may also:
+
+* Suggest alternate signup styles
+* Compare two directions briefly
+* Recommend which approach scales best
+
+But always explain **why**.

@@ -23,6 +23,15 @@ const envSchema = z.object({
     EMAIL_PASSWORD: z.string(),
     EMAIL_FROM: z.string(),
     FRONTEND_ORIGIN: z.string(),
+
+    // Athena Configuration
+    ATHENA_CLIENT_ID: z.string(),
+    ATHENA_CLIENT_SECRET: z.string(),
+    ATHENA_CALLBACK_URL: z.string(),
+    ATHENA_AUTH_URL: z.string(),
+    ATHENA_TOKEN_URL: z.string(),
+    ATHENA_API_BASE_URL: z.string(),
+    ATHENA_SCOPE: z.string(),
 });
 
 const _env = envSchema.safeParse(process.env);

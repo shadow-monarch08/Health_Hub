@@ -1,14 +1,14 @@
 import { EhrProvider } from "./common/ehrProvider.interface";
 import { EHR_CONSTANTS } from "./common/ehr.constants";
 import { epicProvider } from "./epic/provider";
-// import { athenaProvider } from "./athena/provider"; // TODO: Implement Athena
+import { athenaProvider } from "./athena/provider";
 
 export class EhrRegistryService {
     private providers: Map<string, EhrProvider> = new Map();
 
     constructor() {
         this.register(EHR_CONSTANTS.EPIC, epicProvider);
-        // this.register(EHR_CONSTANTS.ATHENA, athenaProvider);
+        this.register(EHR_CONSTANTS.ATHENA, athenaProvider);
     }
 
     register(name: string, provider: EhrProvider) {

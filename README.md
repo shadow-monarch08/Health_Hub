@@ -25,11 +25,12 @@ Built with a focus on security, privacy, and user experience, Health Hub allows 
 
 ## 🛠️ Tech Stack
 
-### Client (Frontend)
--   **Framework**: React (v18) + Vite
+### Client (Mobile Application)
+-   **Framework**: React Native (Expo)
 -   **Language**: TypeScript
--   **Styling**: Plain CSS / Inline Styles (Clean, Terminal-inspired dark mode)
--   **Routing**: React Router Dom v6
+-   **Styling**: NativeWind (Tailwind CSS)
+-   **Routing**: Expo Router
+-   **Platform**: iOS & Android
 
 ### Server (Backend)
 -   **Runtime**: Node.js + Express
@@ -42,35 +43,84 @@ Built with a focus on security, privacy, and user experience, Health Hub allows 
 ## 📂 Folder Structure
 
 ### `client/`
-The React frontend application.
+The React Native Expo application.
 ```text
 client/
-├── public/             # Static assets
+├── app/                  # Screens & Routing
+│   ├── _layout.tsx       # Root Layout
+│   ├── index.tsx         # Entry Screen
+│   ├── auth/             # Authentication Screens (Login, Signup)
+│   ├── home/             # Dashboard & Main Features
+│   └── profiles/         # Profile Management
 ├── src/
-│   ├── api/            # API Client modules (Auth, Profile, EHR)
-│   ├── components/     # Reusable UI components
-│   ├── pages/          # Page views (Auth, Dashboard, Onboarding, Callback)
-│   ├── App.tsx         # Main routing logic
-│   ├── config.ts       # Environment configuration
-│   └── main.tsx        # Entry point
-├── index.html
-└── vite.config.ts
+│   ├── components/       # Reusable UI Components
+│   │   └── ui/           # Atomic Design Elements (Buttons, Inputs)
+│   ├── api/              # API Client & Services
+│   └── ...
+├── assets/               # Static Assets (Images, Fonts)
+├── constants/            # App Constants & Theme
+├── public/               # Documentation Assets (Screenshots)
+└── package.json
 ```
+
+## 📸 Screenshots
+
+### Auth
+| Login | Signup |
+|:---:|:---:|
+| <img src="client/public/screenshots/auth/login-ss.jpg" width="250" alt="Login" /> | <img src="client/public/screenshots/auth/signup-ss.png" width="250" alt="Signup" /> |
+
+| Forgot Password | Reset Password |
+|:---:|:---:|
+| <img src="client/public/screenshots/auth/forgotPassword-ss.jpg" width="250" alt="Forgot Password" /> | <img src="client/public/screenshots/auth/resetPassword-ss.jpg" width="250" alt="Reset Password" /> |
+
+| Verify |
+|:---:|
+| <img src="client/public/screenshots/auth/verify-ss.jpg" width="250" alt="Verify" /> |
+
+### Profile
+| Create Profile |
+|:---:|
+| <img src="client/public/screenshots/profile/createProfile-ss.png" width="250" alt="Create Profile" /> |
+
+### Home
+*Coming Soon*
+
+### Details
+*Coming Soon*
+
+### Future
+*Coming Soon*
 
 ### `server/`
 The Node.js/Express backend API.
 ```text
 server/
-├── prisma/             # DB Schema and Migrations
+├── prisma/               # Database Schema & Migrations
 ├── src/
 │   ├── app/
-│   │   ├── controllers/ # Request handlers (Auth, OAuth, EHR, Profile)
-│   │   ├── middleware/  # Auth guards, Logging, Error handling
-│   │   ├── routes/      # API Route definitions
-│   │   └── services/    # Business logic (FHIR proxy, Token mgmt)
-│   ├── config/          # Envs (logger, database, redis)
-│   ├── redis/           # Redis client and helper services
-│   └── index.ts         # App entry point
+│   │   ├── controllers/  # Request Handlers
+│   │   ├── ehr/          # EHR Integration & Normalization
+│   │   │   ├── athena/   # Athena Health Specific Logic
+│   │   │   ├── epic/     # Epic Systems Specific Logic
+│   │   │   ├── common/   # Shared EHR Utilities
+│   │   │   └── ehr.registry.ts
+│   │   ├── services/     # Core Business Logic
+│   │   │   ├── auth/     # Authentication Service
+│   │   │   ├── profile/  # User Profile Management
+│   │   │   ├── sync/     # Data Synchronization Logic
+│   │   │   └── ...
+│   │   ├── middleware/   # Express Middleware (Auth, Error)
+│   │   ├── routes/       # API Route Definitions
+│   │   ├── sse/          # Server-Sent Events (Real-time)
+│   │   └── utils/        # Shared Utilities
+│   ├── jobs/             # Background Job Processing
+│   │   ├── queues/       # BullMQ Queue Definitions
+│   │   └── workers/      # Job Processors
+│   ├── config/           # Environment & Configuration
+│   ├── database/         # Database Connection (Prisma)
+│   ├── redis/            # Redis Connection & Helpers
+│   └── index.ts          # Server Entry Point
 └── package.json
 ```
 
