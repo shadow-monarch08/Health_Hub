@@ -21,7 +21,13 @@ import { images } from "../../constants";
 import { cn } from "../../src/utils/cn";
 import { useToastStore } from "@/src/store/toastStore";
 
-const RELATION_TYPES = ["Self", "Spouse", "Child", "Parent", "Other"];
+const RELATION_TYPES = [
+  { label: "Self", value: "self" },
+  { label: "Spouse", value: "spouse" },
+  { label: "Child", value: "child" },
+  { label: "Parent", value: "parent" },
+  { label: "Other", value: "other" },
+];
 
 export default function CreateProfileScreen() {
   const router = useRouter();
@@ -29,7 +35,7 @@ export default function CreateProfileScreen() {
   const [displayName, setDisplayName] = useState("");
   const [legalName, setLegalName] = useState("");
   const [dob, setDob] = useState<Date | null>(null);
-  const [relation, setRelation] = useState("Self");
+  const [relation, setRelation] = useState("self");
 
   const handleCreateProfile = () => {
     // Add create profile logic here
@@ -39,7 +45,7 @@ export default function CreateProfileScreen() {
       message: "Profile created successfully!",
       type: "success",
     });
-    // router.replace("/home/overview");
+    router.replace("/auth/connect");
   };
 
   return (
@@ -48,7 +54,7 @@ export default function CreateProfileScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-        // className="flex-1"
+      // className="flex-1"
       >
         <ScrollView
           showsVerticalScrollIndicator={false}

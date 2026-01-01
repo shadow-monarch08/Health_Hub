@@ -75,8 +75,9 @@ client/
 | <img src="client/public/screenshots/auth/forgotPassword-ss.jpg" width="250" alt="Forgot Password" /> | <img src="client/public/screenshots/auth/resetPassword-ss.jpg" width="250" alt="Reset Password" /> |
 
 | Verify |
-|:---:|
+|:---:|:---:|
 | <img src="client/public/screenshots/auth/verify-ss.jpg" width="250" alt="Verify" /> |
+| <img src="client/public/screenshots/auth/connect-ss.jpg" width="250" alt="Verify" /> |
 
 ### Profile
 | Create Profile |

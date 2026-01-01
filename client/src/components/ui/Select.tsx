@@ -14,7 +14,7 @@ import { cn } from "../../utils/cn";
 interface SelectProps {
   label?: string;
   value?: string;
-  options: string[];
+  options: { label: string, value: string }[];
   placeholder?: string;
   onChange: (value: string) => void;
   className?: string;
@@ -105,13 +105,13 @@ export function Select({
               >
                 {options.map((option) => (
                   <TouchableOpacity
-                    key={option}
+                    key={option.value}
                     className={cn(
                       "p-3 rounded-xl flex-row justify-between items-center mb-2",
-                      value === option ? "bg-accent/10" : "bg-transparent"
+                      value === option.value ? "bg-accent/10" : "bg-transparent"
                     )}
                     onPress={() => {
-                      onChange(option);
+                      onChange(option.value);
                       setVisible(false);
                     }}
                   >
@@ -119,12 +119,12 @@ export function Select({
                       variant="body"
                       className={cn(
                         "font-medium",
-                        value === option ? "text-accent" : "text-neutral-900"
+                        value === option.value ? "text-accent" : "text-neutral-900"
                       )}
                     >
-                      {option}
+                      {option.label}
                     </Typography>
-                    {value === option && (
+                    {value === option.value && (
                       <Ionicons name="checkmark" size={20} color="#0FB9B1" />
                     )}
                   </TouchableOpacity>

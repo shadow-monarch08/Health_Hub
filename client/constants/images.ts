@@ -9,4 +9,5 @@ export const images = {
     favicon: require("../assets/images/favicon.png"),
     icon: require("../assets/images/icon.png"),
     splashIcon: require("../assets/images/splash-icon.png"),
+    connectHeader: require("../assets/images/connect-header.png"),
 };
