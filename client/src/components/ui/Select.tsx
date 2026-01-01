@@ -60,17 +60,26 @@ export function Select({
       </TouchableOpacity>
 
       {/* Error Message */}
-      <View className="h-6">
+      <View className="h-6 pt-1">
         {error && (
-          <Typography variant="caption" className="mt-1 text-error">
-            {error}
-          </Typography>
+          <View className="flex-row gap-1 items-center">
+            <Ionicons
+              name="alert-circle"
+              className="mt-0.5"
+              size={16}
+              color="#E5533D"
+            />
+            <Typography variant="caption" className="text-error">
+              {error}
+            </Typography>
+          </View>
         )}
       </View>
 
       <Modal
         visible={visible}
         transparent
+        statusBarTranslucent
         animationType="fade"
         onRequestClose={() => setVisible(false)}
       >

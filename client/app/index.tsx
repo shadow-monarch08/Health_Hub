@@ -14,7 +14,6 @@ export default function Index() {
   return (
     <View className="flex-1 items-center justify-center bg-white gap-4">
       <Text className="text-xl font-bold mb-4">Health Hub Dev</Text>
-      <ActivityIndicator size="large" color="#0284c7" />
 
       {/* Dev Navigation */}
       <View className="w-full px-10 gap-3 mt-8">

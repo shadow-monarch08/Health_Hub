@@ -19,11 +19,13 @@ import { DatePicker } from "../../src/components/ui/DatePicker";
 import { useState } from "react";
 import { images } from "../../constants";
 import { cn } from "../../src/utils/cn";
+import { useToastStore } from "@/src/store/toastStore";
 
 const RELATION_TYPES = ["Self", "Spouse", "Child", "Parent", "Other"];
 
 export default function CreateProfileScreen() {
   const router = useRouter();
+  const { showToast } = useToastStore();
   const [displayName, setDisplayName] = useState("");
   const [legalName, setLegalName] = useState("");
   const [dob, setDob] = useState<Date | null>(null);
@@ -33,7 +35,11 @@ export default function CreateProfileScreen() {
     // Add create profile logic here
     console.log({ displayName, legalName, dob, relation });
     // On success:
-    router.replace("/home/overview");
+    showToast({
+      message: "Profile created successfully!",
+      type: "success",
+    });
+    // router.replace("/home/overview");
   };
 
   return (
@@ -109,7 +115,12 @@ export default function CreateProfileScreen() {
               onChangeText={setLegalName}
             />
 
-            <DatePicker label="Date of Birth" value={dob} onChange={setDob} />
+            <DatePicker
+              maxDate={new Date()}
+              label="Date of Birth"
+              value={dob}
+              onChange={setDob}
+            />
 
             <Select
               label="Relation Type"
@@ -119,7 +130,7 @@ export default function CreateProfileScreen() {
             />
 
             {/* Action Button */}
-            <View>
+            <View className="mt-2">
               <Button
                 title="Create Profile"
                 onPress={handleCreateProfile}
