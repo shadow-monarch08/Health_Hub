@@ -76,8 +76,7 @@ client/
 
 | Verify |
 |:---:|:---:|
-| <img src="client/public/screenshots/auth/verify-ss.jpg" width="250" alt="Verify" /> |
-| <img src="client/public/screenshots/auth/connect-ss.jpg" width="250" alt="Verify" /> |
+| <img src="client/public/screenshots/auth/verify-ss.jpg" width="250" alt="Verify" /> | <img src="client/public/screenshots/auth/connect-ss.jpg" width="250" alt="Verify" /> |
 
 ### Profile
 | Create Profile |
