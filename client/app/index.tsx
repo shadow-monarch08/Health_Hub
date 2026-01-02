@@ -1,48 +1,79 @@
-import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
 
 export default function Index() {
   const router = useRouter();
 
-  // useEffect(() => {
-  //     setTimeout(() => {
-  //         router.replace("/design-system");
-  //     }, 5000);
-  // }, []);
+  const routes = [
+    {
+      title: "Core",
+      items: [
+        { label: "Design System", path: "/design-system" },
+        { label: "Sync", path: "/sync" },
+      ],
+    },
+    {
+      title: "Auth",
+      items: [
+        { label: "Login", path: "/auth/login" },
+        { label: "Signup", path: "/auth/signup" },
+        { label: "Connect", path: "/auth/connect" },
+        { label: "Verify", path: "/auth/verify" },
+        { label: "Forgot Password", path: "/auth/forgot-password" },
+        { label: "Reset Password", path: "/auth/reset-password" },
+        { label: "Callback", path: "/auth/callback" },
+      ],
+    },
+    {
+      title: "Profiles",
+      items: [
+        { label: "Profiles List", path: "/profiles" },
+        { label: "Create Profile", path: "/profiles/create" },
+        { label: "Edit Profile", path: "/profiles/edit" },
+      ],
+    },
+    {
+      title: "Home",
+      items: [
+        { label: "Overview", path: "/home/overview" },
+        { label: "Timeline", path: "/home/timeline" },
+        { label: "Medications", path: "/home/medications" },
+        { label: "Labs", path: "/home/labs" },
+        { label: "Vitals", path: "/home/vitals" },
+      ],
+    },
+    {
+      title: "Details",
+      items: [
+        { label: "Medication Details", path: "/details/medication" },
+        { label: "Observation Details", path: "/details/observation" },
+      ],
+    },
+  ];
 
   return (
-    <View className="flex-1 items-center justify-center bg-white gap-4">
-      <Text className="text-xl font-bold mb-4">Health Hub Dev</Text>
+    <SafeAreaView className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <Text className="text-2xl font-bold mb-6 mt-4 text-center text-slate-900">Health Hub Dev</Text>
 
-      {/* Dev Navigation */}
-      <View className="w-full px-10 gap-3 mt-8">
-        <TouchableOpacity
-          className="w-full"
-          onPress={() => router.push("/design-system")}
-        >
-          <Text className="text-center text-blue-500 py-3 bg-blue-50 rounded-lg overflow-hidden">
-            View Design System
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="w-full"
-          onPress={() => router.push("/auth/signup")}
-        >
-          <Text className="text-center text-blue-500 py-3 bg-blue-50 rounded-lg overflow-hidden">
-            View Signup Demo
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          className="w-full"
-          onPress={() => router.push("/profiles/create")}
-        >
-          <Text className="text-center text-blue-500 py-3 bg-blue-50 rounded-lg overflow-hidden">
-            View Profile Demo
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        {routes.map((section) => (
+          <View key={section.title} className="mb-6">
+            <Text className="text-lg font-semibold mb-3 text-slate-700 px-1">{section.title}</Text>
+            <View className="gap-2">
+              {section.items.map((item) => (
+                <TouchableOpacity
+                  key={item.path}
+                  className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl active:bg-slate-100"
+                  onPress={() => router.push(item.path as any)}
+                >
+                  <Text className="text-slate-700 font-medium">{item.label}</Text>
+                  <Text className="text-xs text-slate-400 mt-1">{item.path}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }

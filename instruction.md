@@ -1,204 +1,253 @@
-## Health Hub — Modern Signup Page (Mobile)
+# 🎯 **Prompt: Fix MedicationRequest (FHIR R4) Normalization Logic**
 
-### Role & Context
+You are an **expert backend engineer working on the Health Hub backend**.
 
-You are a **senior product designer** designing a **mobile-first signup page** for **Health Hub**, a **modern healthcare application** that gives users secure access to their medical data.
-
-This task is **purely about design and UX exploration**.
-
-🚫 Do NOT focus on backend logic
-🚫 Do NOT explain React Native specifics
-🚫 Do NOT copy existing apps
-🚫 Do NOT reuse any fixed design system blindly
-
-You may implement the design using **React (web)** for **mobile screen size**, as a visual prototype only.
+Your task is to **modify ONLY the normalization logic for the FHIR `MedicationRequest` resource** (Prescriptions / Orders).
+⚠️ **Do NOT modify normalization logic for any other FHIR resource types.**
 
 ---
 
-## 🎯 Objective
+## 🧱 Context (Existing System)
 
-Design a **signup experience** that feels:
+* Normalized records are stored in:
+  **`profile_fhir_resources_normalized`**
+* Prisma model:
+  **`ProfileFhirResourceNormalized`**
+* Normalized data is stored in:
+  **`normalizedJson` (JSONB column)**
+* Canonical identifiers are stored in:
+  **`canonicalCode`**
+* Canonical code resolution logic already exists:
 
-* Modern and fresh
-* Calm and reassuring
-* Trustworthy and professional
-* Effortless and non-intimidating
-
-The user should feel:
-
-> “This app respects my health data and my time.”
-
-This is a **health app**, not a social or fintech product — but it should still feel **current and premium**.
-
----
-
-## 🧠 Emotional & Visual Mood
-
-The signup page should communicate:
-
-* Safety
-* Privacy
-* Clarity
-* Simplicity
-* Quiet confidence
-
-Avoid:
-
-* Loud or aggressive visuals
-* Flashy gradients
-* Overly playful animations
-* Dense or cluttered layouts
-* “Startup hype” language
-
-Aim for **modern minimalism with warmth**.
+  * RxNorm (primary)
+  * SNOMED (fallback)
+    ⚠️ This logic must remain unchanged.
 
 ---
 
-## 🧱 Design Norms & Guidance (High-Level)
+## ❌ Current Problems (Must Be Fixed)
 
-### Layout
-
-* Mobile-first layout
-* Clear visual hierarchy
-* Comfortable spacing
-* No visual overload
-* Content should “breathe”
-
-### Typography
-
-* Highly readable
-* Clean, modern sans-serif
-* Clear distinction between:
-
-  * Headline
-  * Supporting text
-  * Input labels
-  * Actions
-
-### Color & Tone
-
-* Use color to **guide**, not decorate
-* Favor calm, medical-safe tones
-* Use contrast thoughtfully for focus and actions
-
-### Inputs & Forms
-
-* Signup should feel **easy and progressive**
-* Reduce friction and cognitive load
-* Clear labeling and helper text
-* Errors should feel calm and supportive, not alarming
+1. `intent` is not stored (orders vs plans are indistinguishable)
+2. `status` is oversimplified and collapsed
+3. Dosage is overly rigid and loses free-text instructions
+4. PRN (“as needed”) information is lost
+5. Multiple `dosageInstruction[]` entries are ignored
+6. Medication reason is flattened and loses Condition linkage
+7. Derived course duration is not explicitly marked as derived
 
 ---
 
-## 🧩 UI Components
+## ✅ Required Changes
 
-You are encouraged to **reuse existing UI components** where appropriate (e.g., input fields, buttons, cards).
-
-If the design requires it:
-
-* You may **create new UI components**
-* New components should remain **generic and reusable**
-* Avoid one-off or overly specific components
-
-The goal is a design that can scale across the app.
+**Apply the following changes ONLY when `resourceType === "MedicationRequest"`**
 
 ---
 
-## 🔐 Signup-Specific Considerations
-
-* The user is sharing **sensitive personal information**
-* Trust signals matter (copy, spacing, tone)
-* Privacy reassurance should be present but subtle
-* The flow should not feel long or demanding
-
-You may choose to:
-
-* Split signup into steps
-* Keep it single-screen but visually lightweight
-* Use gentle guidance or microcopy
-
-Explain **why** you chose the approach.
+## 🔧 Normalization Rules (Authoritative)
 
 ---
 
-## ✍️ Copywriting Tone
+### 1️⃣ Preserve medication intent (CRITICAL)
 
-Language should be:
+Add:
 
-* Clear
-* Respectful
-* Calm
-* Professional
+```json
+"intent": "order | plan | proposal | original-order | instance-order"
+```
 
-Avoid:
+Rules:
 
-* Emojis
-* Slang
-* Overly casual phrases
-* Marketing-heavy wording
-
-Example mindset:
-
-> “We are here to help you manage your health, safely.”
+* Extract directly from `MedicationRequest.intent`
+* Do NOT infer
+* Do NOT default to `"order"`
 
 ---
 
-## 📱 Screens & States to Consider
+### 2️⃣ Preserve full MedicationRequest status
 
-At minimum, design:
+#### ❌ Old
 
-* Default signup state
-* Focused input state
-* Error state (gentle)
-* Disabled / loading state
+```json
+"status": "active"
+```
 
-You do NOT need to implement full flows — focus on **visual clarity and UX intent**.
+#### ✅ New
 
----
+```json
+"status": "active | on-hold | stopped | completed | cancelled | draft | entered-in-error"
+```
 
-## 🧪 Creativity Encouraged (Important)
+Rules:
 
-You are encouraged to:
-
-* Explore different visual directions
-* Experiment with layout balance
-* Propose subtle motion or interaction ideas
-* Suggest why your design feels *modern yet medical*
-
-Creativity is welcome — **chaos is not**.
+* Extract exact FHIR status
+* Do NOT collapse or remap values
+* `entered-in-error` must be preserved verbatim
 
 ---
 
-## 🏁 Final Output Expectations
+### 3️⃣ Preserve structured dosage **and** raw dosage text
 
-Your output should include:
+Replace single dosage object with an array:
 
-* A modern signup page design (React-based, mobile-sized)
-* Clear explanation of:
+```json
+"dosages": [
+  {
+    "dosageText": "Take one capsule by mouth three times daily",
+    "amount": 500,
+    "unit": "mg",
+    "route": "Oral",
+    "frequency_per_day": 3,
+    "isPRN": false
+  }
+]
+```
 
-  * Design choices
-  * Visual hierarchy
-  * Emotional intent
-* Notes on how this design fits a **professional health app**
-* Optional suggestions for refinement
+Rules:
 
-This is **exploration**, not final production UI.
+* One normalized entry per `dosageInstruction[]`
+* Always preserve `dosageInstruction.text`
+* Extract PRN from:
+
+  * `asNeededBoolean`
+  * `asNeededCodeableConcept`
+* Do NOT merge multiple dosage instructions
 
 ---
 
-## 🎯 Final Goal
+### 4️⃣ Support complex and incomplete dosing safely
 
-> Create a **modern, elegant signup page** that feels
-> **safe enough for health data**,
-> **modern enough for today’s users**,
-> and **simple enough for anyone to use**.
+Rules:
+
+* If structured timing cannot be resolved:
+
+  * Preserve `dosageText`
+  * Leave numeric fields as `null`
+* Do NOT infer frequency or amount
+* Do NOT attempt tapering or schedule logic
 
 ---
 
-If needed, you may also:
+### 5️⃣ Preserve medication reason (text + linkage)
 
-* Suggest alternate signup styles
-* Compare two directions briefly
-* Recommend which approach scales best
+```json
+"reason": {
+  "text": "Bacterial infection",
+  "conditionRefs": ["Condition/abc123"]
+}
+```
 
-But always explain **why**.
+Rules:
+
+* Extract from:
+
+  * `reasonCode[].text`
+  * `reasonReference[]`
+* Preserve references without resolving Condition data
+* Do NOT drop free-text reason
+
+---
+
+### 6️⃣ Make course timing explicit and mark derived values
+
+```json
+"course": {
+  "start": "2023-10-14",
+  "end": "2023-10-21",
+  "duration_days": 7,
+  "derived": true
+}
+```
+
+Rules:
+
+* Extract `start` from:
+
+  * `authoredOn`
+  * or `dispenseRequest.validityPeriod.start`
+* Extract `end` only if explicitly provided
+* If `duration_days` is calculated, mark `"derived": true`
+* Do NOT imply clinical certainty
+
+---
+
+### 7️⃣ Keep medication identity logic unchanged
+
+✔ Keep RxNorm canonicalCode logic
+✔ Keep medication name extraction
+✔ Do NOT move Medication resource logic here
+✔ Medication form is optional and must not be inferred
+
+---
+
+## 📦 Final Required Normalized JSON Shape (MedicationRequest)
+
+```json
+{
+  "status": "active",
+  "intent": "order",
+
+  "medication": {
+    "name": "Amoxicillin 500 MG",
+    "canonicalCode": "723"
+  },
+
+  "dosages": [
+    {
+      "dosageText": "Take one capsule by mouth three times daily",
+      "amount": 500,
+      "unit": "mg",
+      "route": "Oral",
+      "frequency_per_day": 3,
+      "isPRN": false
+    }
+  ],
+
+  "course": {
+    "start": "2023-10-14",
+    "end": "2023-10-21",
+    "duration_days": 7,
+    "derived": true
+  },
+
+  "supply": {
+    "days": 7,
+    "refills": 0
+  },
+
+  "reason": {
+    "text": "Bacterial infection",
+    "conditionRefs": []
+  }
+}
+```
+
+---
+
+## 🚫 Explicit Constraints (DO NOT VIOLATE)
+
+* ❌ Do NOT modify normalization for any other FHIR resource
+* ❌ Do NOT infer adherence or “currently taking”
+* ❌ Do NOT collapse dosage instructions
+* ❌ Do NOT default intent or status
+* ❌ Do NOT change database schema
+* ❌ Do NOT introduce medication classification logic
+
+---
+
+## ✅ Deliverables
+
+* Updated normalization logic for **MedicationRequest only**
+* Intent-aware, status-faithful prescription records
+* Backward-compatible UX output
+* Safe handling of complex dosing instructions
+
+---
+
+## 🧠 Goal
+
+After this change:
+
+* Prescriptions vs plans are distinguishable
+* Dosage instructions are faithful to clinician intent
+* Medication lists are accurate
+* Data remains FHIR-correct and audit-safe

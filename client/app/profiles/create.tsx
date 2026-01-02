@@ -4,8 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Modal,
-  Pressable,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,7 +16,6 @@ import { Select } from "../../src/components/ui/Select";
 import { DatePicker } from "../../src/components/ui/DatePicker";
 import { useState } from "react";
 import { images } from "../../constants";
-import { cn } from "../../src/utils/cn";
 import { useToastStore } from "@/src/store/toastStore";
 
 const RELATION_TYPES = [

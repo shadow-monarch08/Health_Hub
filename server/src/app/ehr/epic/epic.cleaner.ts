@@ -296,9 +296,11 @@ export class EpicCleaner {
       const existing = summary[key];
       if (!existing || data.recordedDate > existing.recordedDate) {
         summary[key] = {
-          criticality: data.criticality,
+          ccriticality: data.criticality,
           reaction: data.reaction,
           status: data.clinicalStatus,
+          allergy: data.allergy,
+          condition: data.condition,
           recordedDate: data.recordedDate,
         };
       }
