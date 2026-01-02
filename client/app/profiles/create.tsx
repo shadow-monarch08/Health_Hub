@@ -54,7 +54,7 @@ export default function CreateProfileScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      // className="flex-1"
+        // className="flex-1"
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -66,7 +66,7 @@ export default function CreateProfileScreen() {
           <View className="rounded-b-[32px] overflow-hidden shadow-lg shadow-accent/20 bg-accent/10 mb-6">
             <ImageBackground
               source={images.createProfileHeader}
-              className="h-[240px] w-full justify-between"
+              className="h-[280px] w-full justify-between"
               resizeMode="cover"
             >
               {/* Overlay Gradient/Tint - Using Accent Color (#0FB9B1) */}

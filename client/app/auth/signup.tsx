@@ -39,7 +39,7 @@ export default function SignupScreen() {
           <View className="rounded-b-[32px] overflow-hidden shadow-lg shadow-primary/20 bg-primary/10">
             <ImageBackground
               source={images.signupHeader}
-              className="h-[240px] w-full justify-between"
+              className="h-[280px] w-full justify-between"
               resizeMode="cover"
             >
               {/* Overlay Gradient/Tint (Optional for readability) */}
@@ -68,6 +68,9 @@ export default function SignupScreen() {
 
                 {/* Title Section */}
                 <View className="gap-2 mb-4">
+                  <View className="size-11 p-2 rounded-xl bg-white/20 backdrop-blur-md items-center justify-center mb-2">
+                    <Ionicons name="person-add" size={24} color="white" />
+                  </View>
                   <Typography
                     variant="title"
                     className="text-3xl tracking-tight text-white shadow-sm"

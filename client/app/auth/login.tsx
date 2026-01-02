@@ -38,7 +38,7 @@ export default function LoginScreen() {
           <View className="rounded-b-[32px] overflow-hidden shadow-lg shadow-primary/20 bg-primary/10">
             <ImageBackground
               source={images.loginHeader}
-              className="h-[240px] w-full justify-between"
+              className="h-[280px] w-full justify-between"
               resizeMode="cover"
             >
               {/* Overlay Gradient/Tint */}
@@ -67,6 +67,9 @@ export default function LoginScreen() {
 
                 {/* Title Section */}
                 <View className="gap-2 mb-4">
+                  <View className="size-11 p-2 rounded-xl bg-white/20 backdrop-blur-md items-center justify-center mb-2">
+                    <Ionicons name="person-circle" size={24} color="white" />
+                  </View>
                   <Typography
                     variant="title"
                     className="text-3xl tracking-tight text-white shadow-sm"
@@ -123,7 +126,7 @@ export default function LoginScreen() {
               <View className="gap-4">
                 <Button
                   title="Log In"
-                  onPress={() => { }}
+                  onPress={() => {}}
                   variant="primary"
                   className="shadow-md shadow-primary/20"
                 />
